@@ -1,0 +1,70 @@
+# L02 - Byte-parsing
+
+## Dagordning
+* Repetition: Frame-formatet och fältens syfte (SOF, LEN, TYPE, DST, SRC, SEQ, DATA, CHK).
+* Verkligheten: Data kommer som en byte-ström (inte som en komplett buffer).
+* Tillståndsmaskiner (state machines) för parsing.
+* Parser-design: processera bytes, extrahera frames med mera.
+* Robusthet: Skräpdata, tappade bytes och trasiga frames.
+* Demo: PING in byte för byte → PONG tillbaka.
+
+---
+
+## Mål med lektionen
+* Förstå varför byte-stream parsing behövs.
+* Kunna beskriva en parser som en tillståndsmaskin.
+* Kunna implementera en frame-parser som:
+    * Tar emot en byte i taget.
+    * Kan ta emot en komplett frame (utan skräpdata) och extrahera den korrekt.
+* Kunna återhämta sig från skräpdata före en frame.
+* Kunna förkasta frames med trasig checksumma.
+
+---
+
+## Förutsättningar
+* L01 klar: Ni har en fungerande `comm::frame::Frame` med `serialize()` och `deserialize()`.
+* Grundläggande C/C++ (pekare, arrayer, klasser, enum class).
+
+---
+
+## Instruktioner
+
+### Förberedelse
+* Läs igenom [bilaga A](./appendix/a_frame_parsing.md) gällande frame-parsning.
+
+### Under lektionen
+* Genomför övningsuppgifter i [bilaga B](./appendix/b_exercises.md).
+
+### Efter lektionen
+* Kör den utdelade testsviten i [testsuite](./testsuite/README.md) mot er egen `Frame` och
+  `Parser`. Ni skriver inte testerna; ni får dem att passera, och läser vad de rapporterar när
+  de fallerar.
+
+### Demonstration
+* Skräpdata före SOF → parsern hittar SOF och fortsätter.
+* Trasig checksumma → parsern avvisar framen.
+* Två frames back-to-back → parsern hittar båda.
+
+---
+
+## Lektionsanteckningar
+Lösningsförslag för övningsuppgifterna finns [här](./notes/README.md).
+
+---
+
+## Utvärdering
+* Kan ni förklara varför vi behöver:
+    * SOF (synk).
+    * LEN (hur många bytes som återstår).
+    * En state machine (för att läsa byte för byte).
+* Kan ni beskriva vad `processByte()` ska returnera och när?
+* Kan ni beskriva när `extractFrame()` får returnera `true`?
+
+---
+
+## Nästa lektion
+* Routing via adresser och en simulerad databuss, och därefter allt som krävs för att
+  kommunikationen ska bli tillförlitlig när bussen inte är det.
+* Det är kursens sista pass med det egna protokollet: från [L04](../L04/README.md) tar CAN över.
+
+---
