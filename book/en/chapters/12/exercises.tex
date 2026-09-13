@@ -1,0 +1,69 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Watch the optimiser work}{Code}
+\label{ex:12:1}
+On the host computer, before you write any hardware code:
+\begin{cppcode}
+int flag{};
+
+void wait()
+{
+    while (flag == 0)
+    {
+    }
+}
+\end{cppcode}
+\begin{enumerate}[a)]
+  \item Compile with \code{-O2 -S} and look at the assembly. What became of the loop?
+  \item Add \code{volatile} to \code{flag} and do it again. What changed?
+  \item Explain in two sentences why the difference matters for the status flag in
+    \code{transfer()}.
+\end{enumerate}
+
+\exercise{Predict, change, observe}{Code}
+\label{ex:12:2}
+Make one change at a time and note the symptom. Restore after each one.
+\begin{enumerate}[a)]
+  \item Remove the pin mux line.
+  \item Remove slave select disable from the mode register.
+  \item Set the prescaler so that the clock becomes twice as fast.
+  \item Remove the read of the data register in \code{transfer()}.
+  \item Forget to set the clock pin as an output.
+\end{enumerate}
+Line d) is the most insidious: it \emph{looks} like it works. What actually goes wrong, and when
+is it noticed?
+
+\exercise{The architecture test}{Code}
+\label{ex:12:3}
+Swap the transport and the driver for a \code{Stub} in the factory and compile for the host
+computer.
+\begin{enumerate}[a)]
+  \item Did it work?
+  \item If not: which file did the compiler complain about, and which layer boundary had been
+    broken?
+  \item Run the program. What does \code{EchoNode} do against a \code{Stub}?
+\end{enumerate}
+
+\exercise{Freestanding}{Code}
+\label{ex:12:4}
+Build the firmware with \code{-fno-exceptions -fno-rtti}.
+\begin{enumerate}[a)]
+  \item Does everything compile?
+  \item Search the whole project for \code{new}, \code{std::vector}, \code{std::string} and
+    \code{dynamic_cast}. Do you find anything?
+  \item Why did the design not have to change for the freestanding target?
+\end{enumerate}
+
+\exercise{The construction order}{Reasoning}
+\label{ex:12:5}
+Swap the factory's two member declarations.
+\begin{enumerate}[a)]
+  \item Does it compile? Does the compiler warn?
+  \item What happens at run time, and why?
+  \item Which general rule about member order follows from that?
+\end{enumerate}

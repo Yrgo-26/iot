@@ -1,0 +1,17 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item \code{send()}: validate, check the status, write four data registers, trigger
+    \textbf{last}. The trigger means "start transmitting now", and the controller then reads the
+    other registers.
+  \item \code{send()} returns \code{false} for two reasons, and only one of them goes away by
+    itself. \code{while (!send(frame)) {}} hangs forever on an invalid frame.
+  \item \code{TX_DATA_LO} carries data bytes 0--3. Swapping them gives a frame that arrives back
+    to front --- everything \emph{looks} like it works.
+  \item \code{receive()} masks against \code{dlc} even though the hardware already zeroes: the
+    zeroes are the controller's guarantee, not the frame's content.
+  \item \code{RX_ACK} is written last. Forget it and you read the same frame in an endless loop.
+  \item \code{clearError()} writes \code{0x0}. Write \code{0x1} and the error bit never goes low.
+  \item \code{send()} does not wait. Waiting is another attempt, and happens at the caller.
+\end{itemize}

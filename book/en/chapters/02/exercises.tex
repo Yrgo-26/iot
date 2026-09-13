@@ -1,0 +1,52 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Find the frame}{Decoding}
+\label{ex:2:1}
+A node receives the following byte stream:
+
+\begin{console}
+32 74 00 FF A5 F7 03 03 25 17 7F 05 10 20 30 02 C2
+\end{console}
+
+\begin{enumerate}[a)]
+  \item At which index does the frame begin?
+  \item Which bytes belong to it, from SOF up to and including CHK?
+  \item What is the parser to do with the bytes before it?
+  \item What type does the frame have, and which addresses does it travel between?
+\end{enumerate}
+
+\exercise{The SOF trap}{Reasoning}
+\label{ex:2:2}
+The parser is in \code{WaitForSof2} and receives \code{0xA5}.
+\begin{enumerate}[a)]
+  \item What does the naive implementation do, and what is lost?
+  \item What should it do instead?
+  \item Construct a byte stream where the difference decides whether a valid frame is found or
+    not.
+\end{enumerate}
+
+\exercise{A dropped byte}{Decoding}
+\label{ex:2:3}
+The same frame as in exercise \ref{ex:2:1}, but the byte \code{0x20} is dropped on the way.
+\begin{enumerate}[a)]
+  \item Which field does the parser read as the checksum?
+  \item Will \code{isFrameReady()} become true?
+  \item What does \code{extractFrame()} return, and why?
+  \item Which state is the parser in afterwards, and what does it take for it to find the next
+    frame?
+\end{enumerate}
+
+\exercise{The length field}{Reasoning}
+\label{ex:2:4}
+A parser does not check the length field against the size of its buffer.
+\begin{enumerate}[a)]
+  \item Construct a byte stream that makes it write past the end of its buffer.
+  \item Why is it not enough to check the length in \code{extractFrame()}?
+  \item Which general rule follows from that, and where in \kapref{ch:driver} does the same rule
+    apply again?
+\end{enumerate}

@@ -1,0 +1,187 @@
+\section{Why yet another seam}
+\label{sec:whyseam}
+
+\code{Interface} made \code{Stub} and \code{Spi} interchangeable, and thereby \code{EchoNode}
+testable. But \code{Spi} itself lies \emph{below} that seam. Without something more it can only be
+run on real hardware.
+
+Work out what that would mean. \code{Spi} is finished in \kapref{ch:driver}. The hardware exists
+in \kapref{ch:bringup}. In between you would have an untried class that nobody has run a single
+time --- and the first time it is run, it is run on a board another group is debugging at the same
+time, over four wires that may or may not be in the right place.
+
+That is not a good way to find a bit-shifting error.
+
+\begin{cppcode}
+namespace driver::can
+{
+/**
+ * @brief Moves single bytes to and from the CAN controller, and frames transactions.
+ *
+ *        Knows nothing about registers, command bytes or CAN: it only carries bytes.
+ */
+class ByteTransport
+{
+public:
+    virtual ~ByteTransport() noexcept = default;
+
+    virtual void select() noexcept   = 0;   /**< Assert SS; begin a transaction. */
+    virtual void deselect() noexcept = 0;   /**< Release SS; end the transaction. */
+
+    [[nodiscard]] virtual std::uint8_t transfer(std::uint8_t byte) noexcept = 0;
+};
+} // namespace driver::can
+\end{cppcode}
+
+Three methods. That is the whole layer.
+
+\textbf{Why \code{transfer()} returns a byte.} SPI is full duplex; a signature like
+\code{void transfer(std::uint8_t)} would lie about what the hardware does.
+
+\textbf{Why \code{select()}/\code{deselect()} are methods of their own.} The \code{SS} framing is
+part of the \emph{protocol}, not of how a byte is transferred. The transport should not have to
+know that a transaction is five bytes long. Keep it dumb, and it does one thing only --- and is
+easy to implement correctly both on the target and in a test.
+
+\textbf{Why \code{noexcept} everywhere.} The layer runs on a freestanding target without
+exceptions. Writing that in the signature already now makes it impossible to sneak in something
+that throws.
+
+\section{The constants}
+\label{sec:constants}
+
+\begin{cppcode}
+class Spi final : public Interface
+{
+    // ...
+private:
+    /** Register indices, as sent in the command byte. */
+    static constexpr std::uint8_t RegStatus{0U};
+    static constexpr std::uint8_t RegTxId{1U};
+    static constexpr std::uint8_t RegTxDlc{2U};
+    static constexpr std::uint8_t RegTxDataLo{3U};
+    static constexpr std::uint8_t RegTxDataHi{4U};
+    static constexpr std::uint8_t RegTxSend{5U};
+    static constexpr std::uint8_t RegRxId{6U};
+    static constexpr std::uint8_t RegRxDlc{7U};
+    static constexpr std::uint8_t RegRxDataLo{8U};
+    static constexpr std::uint8_t RegRxDataHi{9U};
+    static constexpr std::uint8_t RegRxAck{10U};
+    static constexpr std::uint8_t RegErrorFlags{11U};
+    static constexpr std::uint8_t RegTxAbort{12U};
+
+    /** STATUS register bit masks. */
+    static constexpr std::uint32_t StatusTxReady{1U << 0U};
+    static constexpr std::uint32_t StatusRxValid{1U << 1U};
+    static constexpr std::uint32_t StatusError{1U << 2U};
+
+    /** Command byte: bit 7 set means write. */
+    static constexpr std::uint8_t CmdWrite{0x80U};
+
+    /** Value written to the write-triggered registers. */
+    static constexpr std::uint32_t Trigger{0x1U};
+
+    ByteTransport& myTransport; /**< Transport used for every register access. Not owned. */
+};
+\end{cppcode}
+
+\textbf{Indices, not offsets.} The offset column of the register map is a legacy of the
+memory-mapped variant. What goes out on the wire is the index, that is, $\text{offset}/4$. Write
+the constants as indices directly, and you avoid a division on every call and a class of bugs
+where somebody divides twice or not at all.
+
+\textbf{\code{1U << 0U} and not \code{0x01U}.} The mask is written as a shift because the register
+map is written in bit positions. \code{StatusRxValid{1U << 1U}} can be compared line by line
+against the table; \code{0x02U} cannot.
+
+\section{The two helper functions}
+\label{sec:helpers}
+
+\begin{cppcode}
+void Spi::writeReg(const std::uint8_t index, const std::uint32_t value) const noexcept
+{
+    myTransport.select();
+
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(CmdWrite | index)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 24U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 16U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 8U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value)));
+
+    myTransport.deselect();
+}
+
+std::uint32_t Spi::readReg(const std::uint8_t index) const noexcept
+{
+    myTransport.select();
+
+    static_cast<void>(myTransport.transfer(index));
+
+    std::uint32_t value{};
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 24U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 16U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 8U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U));
+
+    myTransport.deselect();
+    return value;
+}
+\end{cppcode}
+
+Read \code{writeReg()} against \code{81 00 00 01 23} in \kapref{ch:spi}. Four things to note:
+
+\textbf{Every \code{static_cast<void>} is deliberate.} \code{transfer()} is \code{[[nodiscard]]},
+and during a write the return value is meaningless. The cast tells both the compiler and the
+reader that this is known.
+
+\textbf{In \code{readReg()} the first byte is discarded.} The slave loads its response shifter at
+the \emph{end} of the command byte. Four \code{transfer()} calls contribute to the value, not five.
+
+\textbf{The command byte is just \code{index} on a read.} Bit 7 low means a read; no
+\code{CmdWrite}.
+
+\textbf{The methods are \code{const}.} They do not change the state of the \code{Spi} object ---
+the reference itself does not change. That the hardware changes is another matter; \code{const} in
+C++ speaks about the object, not about the world. That is why \code{hasError() const} can call
+\code{readReg()}.
+
+\subsection{The sign extension bug}
+
+This is the most common bug in the project, and it deserves a heading of its own:
+
+\begin{cppcode}
+value |= myTransport.transfer(0U) << 24U;                             // wrong
+value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 24U; // right
+\end{cppcode}
+
+\code{transfer()} returns a \code{std::uint8_t}. In the first line it is promoted to \code{int} ---
+32 bits \emph{with sign} --- and shifted 24 steps. For a value with bit 7 set, that writes into the
+sign bit. The result is undefined behaviour, and in practice a negative number that is then
+converted to \code{std::uint32_t} with \code{0xFF} bytes where there should be none.
+
+\textbf{The symptom: the driver works for small values and breaks as soon as a byte has bit 7
+set.} So it works for \code{0x123} and breaks for \code{0xAABB}.
+
+\begin{aside}
+\note[Rule] Cast \textbf{before} the shift, not after. The same rule applies to the packing in
+\kapref{ch:driver}.
+\end{aside}
+
+\subsection{Why the helper functions are private}
+
+They are implementation details. Nobody outside the class should be able to poke at the registers,
+for the same reason that \code{Interface} has no \code{readStatusRegister()}: the day somebody
+does it in the application code, the architecture is broken.
+
+The supplied test suite tests them anyway --- through \code{send()} and \code{receive()}, and by
+inspecting which bytes came out. Testing a private method directly is almost always a sign that it
+ought to be public, or that the test is testing the wrong thing.
+
+\subsection{What the layer does not do}
+
+\code{readReg()} and \code{writeReg()} are pure translations of the protocol and contain no logic
+at all: no validation, no status check, no notion of what a register means.
+
+All the meaning lives in the layer above, and that is \kapref{ch:driver}. The moment
+\code{writeReg()} starts containing "if the index is \code{RegTxSend}, first check that..." two
+layers have melted together, and both became harder to test.

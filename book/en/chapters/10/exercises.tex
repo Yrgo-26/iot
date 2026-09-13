@@ -1,0 +1,57 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Break the code on purpose}{Code}
+\label{ex:10:1}
+Make one change at a time, run against your \code{PrintTransport}, and note what the output shows
+and how the error would manifest on a real bus. Restore after each one.
+\begin{enumerate}[a)]
+  \item \code{TX_SEND} is written first instead of last.
+  \item \code{TX_DATA_LO} and \code{TX_DATA_HI} swap places.
+  \item The shifts inside \code{pack()} in reverse order.
+  \item \code{clearError()} writes \code{0x1}.
+  \item \code{receive()} forgets \code{RX_ACK}.
+  \item \code{receive()} does not mask against \code{dlc}.
+  \item \code{send()} skips the status check.
+\end{enumerate}
+Line f) is the hardest: the output \emph{looks right}. Why, and which test case in
+\kapref{ch:testning} catches it anyway?
+
+\exercise{Count transactions}{Calculation}
+\label{ex:10:2}
+Write it down without running it, then check.
+\begin{enumerate}[a)]
+  \item A \code{send()} that succeeds?
+  \item A \code{send()} that returns \code{false} because the hardware is busy?
+  \item A \code{send()} that returns \code{false} because \code{dlc = 9}?
+  \item A \code{receive()} that finds no frame?
+  \item A \code{receive()} that finds one?
+\end{enumerate}
+Question c) is the point: the validation comes first \emph{precisely so that} an invalid frame
+costs not a single transaction.
+
+\exercise{The infinite loop}{Code}
+\label{ex:10:3}
+\begin{enumerate}[a)]
+  \item Run \code{while (!driver.send(frame)) {}} with a valid frame against a transport that says
+    the hardware is busy. What happens?
+  \item Run the same loop with \code{frame.dlc = 9}. What happens?
+  \item Rewrite the loop so that both cases are handled.
+\end{enumerate}
+
+\exercise{Design questions}{Reasoning}
+\label{ex:10:4}
+Short answers; they belong in the project report.
+\begin{enumerate}[a)]
+  \item \code{send()} returns \code{false} for two completely different reasons. What would you
+    have changed in \code{Interface} to tell them apart, and what would it have cost \code{Stub}?
+  \item Give a scenario where the masking against \code{dlc} actually makes a difference.
+  \item Your node transmits a frame and loses the arbitration. Describe step by step what the
+    driver observes --- and what it \emph{cannot} observe.
+  \item The controller does not buffer received frames. Which change in \emph{your} code reduces
+    the risk of losing a frame the most, and which limit will you still not get past?
+\end{enumerate}

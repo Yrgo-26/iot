@@ -1,0 +1,186 @@
+\section{Varför ännu en söm}
+\label{sec:whyseam}
+
+\code{Interface} gjorde \code{Stub} och \code{Spi} utbytbara, och därmed \code{EchoNode} testbar.
+Men \code{Spi} själv ligger \emph{under} den sömmen. Utan något mer går den bara att köra på riktig
+hårdvara.
+
+Räkna på vad det skulle betyda. \code{Spi} blir klar i \kapref{ch:driver}. Hårdvaran finns i
+\kapref{ch:bringup}. Däremellan skulle du ha en oprövad klass som ingen kört en enda gång --- och
+första gången den körs görs det på ett kort som samtidigt felsöks av en annan grupp, över fyra
+ledningar som kanske sitter rätt.
+
+Det är inte ett bra sätt att hitta ett bitskiftningsfel.
+
+\begin{cppcode}
+namespace driver::can
+{
+/**
+ * @brief Moves single bytes to and from the CAN controller, and frames transactions.
+ *
+ *        Knows nothing about registers, command bytes or CAN: it only carries bytes.
+ */
+class ByteTransport
+{
+public:
+    virtual ~ByteTransport() noexcept = default;
+
+    virtual void select() noexcept   = 0;   /**< Assert SS; begin a transaction. */
+    virtual void deselect() noexcept = 0;   /**< Release SS; end the transaction. */
+
+    [[nodiscard]] virtual std::uint8_t transfer(std::uint8_t byte) noexcept = 0;
+};
+} // namespace driver::can
+\end{cppcode}
+
+Tre metoder. Det är hela lagret.
+
+\textbf{Varför \code{transfer()} returnerar en byte.} SPI är full duplex; en signatur som vore
+\code{void transfer(std::uint8_t)} skulle ljuga om vad hårdvaran gör.
+
+\textbf{Varför \code{select()}/\code{deselect()} är egna metoder.} \code{SS}-ramningen är en del av
+\emph{protokollet}, inte av hur en byte överförs. Transporten ska inte behöva veta att en
+transaktion är fem bytes lång. Håll den dum, så gör den bara en sak --- och är lätt att
+implementera rätt både på målet och i ett test.
+
+\textbf{Varför \code{noexcept} överallt.} Lagret körs på ett friställt mål utan undantag. Att
+skriva det i signaturen redan nu gör det omöjligt att smyga in något som kastar.
+
+\section{Konstanterna}
+\label{sec:constants}
+
+\begin{cppcode}
+class Spi final : public Interface
+{
+    // ...
+private:
+    /** Register indices, as sent in the command byte. */
+    static constexpr std::uint8_t RegStatus{0U};
+    static constexpr std::uint8_t RegTxId{1U};
+    static constexpr std::uint8_t RegTxDlc{2U};
+    static constexpr std::uint8_t RegTxDataLo{3U};
+    static constexpr std::uint8_t RegTxDataHi{4U};
+    static constexpr std::uint8_t RegTxSend{5U};
+    static constexpr std::uint8_t RegRxId{6U};
+    static constexpr std::uint8_t RegRxDlc{7U};
+    static constexpr std::uint8_t RegRxDataLo{8U};
+    static constexpr std::uint8_t RegRxDataHi{9U};
+    static constexpr std::uint8_t RegRxAck{10U};
+    static constexpr std::uint8_t RegErrorFlags{11U};
+    static constexpr std::uint8_t RegTxAbort{12U};
+
+    /** STATUS register bit masks. */
+    static constexpr std::uint32_t StatusTxReady{1U << 0U};
+    static constexpr std::uint32_t StatusRxValid{1U << 1U};
+    static constexpr std::uint32_t StatusError{1U << 2U};
+
+    /** Command byte: bit 7 set means write. */
+    static constexpr std::uint8_t CmdWrite{0x80U};
+
+    /** Value written to the write-triggered registers. */
+    static constexpr std::uint32_t Trigger{0x1U};
+
+    ByteTransport& myTransport; /**< Transport used for every register access. Not owned. */
+};
+\end{cppcode}
+
+\textbf{Index, inte offset.} Registerkartans offsetkolumn är ett arv från den minnesmappade
+varianten. Det som går ut på ledningen är indexet, alltså $\text{offset}/4$. Skriv konstanterna som
+index direkt, så slipper du en division vid varje anrop och en klass av fel där någon dividerar
+två gånger eller ingen gång.
+
+\textbf{\code{1U << 0U} och inte \code{0x01U}.} Masken skrivs som en skiftning därför att
+registerkartan är skriven i bitpositioner. \code{StatusRxValid{1U << 1U}} går att jämföra rad för
+rad mot tabellen; \code{0x02U} gör det inte.
+
+\section{De två hjälpfunktionerna}
+\label{sec:helpers}
+
+\begin{cppcode}
+void Spi::writeReg(const std::uint8_t index, const std::uint32_t value) const noexcept
+{
+    myTransport.select();
+
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(CmdWrite | index)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 24U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 16U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value >> 8U)));
+    static_cast<void>(myTransport.transfer(static_cast<std::uint8_t>(value)));
+
+    myTransport.deselect();
+}
+
+std::uint32_t Spi::readReg(const std::uint8_t index) const noexcept
+{
+    myTransport.select();
+
+    static_cast<void>(myTransport.transfer(index));
+
+    std::uint32_t value{};
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 24U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 16U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 8U;
+    value |= static_cast<std::uint32_t>(myTransport.transfer(0U));
+
+    myTransport.deselect();
+    return value;
+}
+\end{cppcode}
+
+Läs \code{writeReg()} mot \code{81 00 00 01 23} i \kapref{ch:spi}. Fyra saker att lägga märke till:
+
+\textbf{Varje \code{static_cast<void>} är avsiktlig.} \code{transfer()} är \code{[[nodiscard]]},
+och under en skrivning är returvärdet meningslöst. Casten säger till både kompilatorn och läsaren
+att det är känt.
+
+\textbf{I \code{readReg()} kastas den första byten.} Slaven laddar sin svarsskiftare i \emph{slutet}
+av kommandobyten. Fyra \code{transfer()} bidrar till värdet, inte fem.
+
+\textbf{Kommandobyten är bara \code{index} vid läsning.} Bit 7 låg betyder läsning; ingen
+\code{CmdWrite}.
+
+\textbf{Metoderna är \code{const}.} De ändrar inte \code{Spi}-objektets tillstånd --- referensen i
+sig ändras inte. Att hårdvaran ändras är en annan sak; \code{const} i C++ talar om objektet, inte
+om världen. Det är därför \code{hasError() const} kan anropa \code{readReg()}.
+
+\subsection{Teckenutvidgningsbuggen}
+
+Det här är projektets vanligaste bugg, och den är värd en egen rubrik:
+
+\begin{cppcode}
+value |= myTransport.transfer(0U) << 24U;                             // fel
+value |= static_cast<std::uint32_t>(myTransport.transfer(0U)) << 24U; // rätt
+\end{cppcode}
+
+\code{transfer()} returnerar en \code{std::uint8_t}. I den första raden befordras den till
+\code{int} --- 32 bitar \emph{med tecken} --- och skiftas 24 steg. För ett värde med bit 7 satt
+skriver det in i teckenbiten. Resultatet är odefinierat beteende, och i praktiken ett negativt tal
+som sedan konverteras till \code{std::uint32_t} med \code{0xFF}-bytes där det inte ska finnas
+några.
+
+\textbf{Symptomet: drivrutinen fungerar för små värden och går sönder så fort en byte har bit 7
+satt.} Alltså fungerar den för \code{0x123} och går sönder för \code{0xAABB}.
+
+\begin{aside}
+\note[Regel] Casta \textbf{före} skiftningen, inte efter. Samma regel gäller packningen i
+\kapref{ch:driver}.
+\end{aside}
+
+\subsection{Varför hjälpfunktionerna är privata}
+
+De är implementationsdetaljer. Ingen utanför klassen ska kunna peta i registren, av samma skäl som
+\code{Interface} inte har en \code{readStatusRegister()}: den dag någon gör det i
+applikationskoden är arkitekturen bruten.
+
+Den utdelade testsviten testar dem ändå --- genom \code{send()} och \code{receive()}, och genom att
+inspektera vilka bytes som kom ut. Att testa en privat metod direkt är nästan alltid ett tecken på
+att den borde vara publik, eller på att testet testar fel sak.
+
+\subsection{Vad lagret inte gör}
+
+\code{readReg()} och \code{writeReg()} är rena översättningar av protokollet och innehåller ingen
+logik alls: ingen validering, ingen statuskontroll, inget begrepp om vad ett register betyder.
+
+All betydelse ligger i lagret ovanför, och det är \kapref{ch:driver}. Så fort \code{writeReg()}
+börjar innehålla "om index är \code{RegTxSend}, kontrollera först att..." har två lager smält
+ihop, och båda blev svårare att testa.

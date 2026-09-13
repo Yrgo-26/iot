@@ -1,0 +1,122 @@
+\section{SPI på fyra ledningar}
+\label{sec:spilines}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Ledning} & \thead{Riktning} & \thead{Betydelse} \\ \midrule
+\code{SCK} & master $\rightarrow$ slav & Klocka. Ingenting händer utan flanker på den. \\
+\code{MOSI} & master $\rightarrow$ slav & Masterns data. \\
+\code{MISO} & slav $\rightarrow$ master & Slavens data. \\
+\code{SS} & master $\rightarrow$ slav & Aktiv låg. Ramar transaktionen. \\
+\end{booktable}
+
+Den viktigaste egenskapen: \textbf{SPI är full duplex.} Varje klockpuls skiftar samtidigt en bit
+ut på \code{MOSI} och en bit in på \code{MISO}. Det finns inget sätt att "bara läsa" --- för att få
+en byte in måste man skicka en byte ut.
+
+Därför skickar en läsning fyra dummybytes \code{0x00}, och därför är de fyra \code{MISO}-byten
+under en skrivning meningslöst skräp.
+
+Parametrarna: SPI mode 0 (klockan vilar låg, data samplas på stigande flank), MSB först,
+\code{SCK} högst 1~MHz.
+
+\section{Transaktionen}
+\label{sec:transaction}
+
+\textbf{Varje transaktion är exakt fem bytes}: en kommandobyte följd av fyra databytes, med
+\code{SS} låg hela vägen.
+
+\begin{console}
+Bit:      7    6    5    4    3    2    1    0
+        +----+----+----+----+----+----+----+----+
+        | W  | 0  | 0  | 0  |   register index  |
+        +----+----+----+----+----+----+----+----+
+\end{console}
+
+\code{W = 1} betyder skrivning, \code{W = 0} läsning. Bitarna 6--4 är reserverade och ska vara
+\code{0}. Bitarna 3--0 är registerindexet, 0--12, ur registerkartan i \kapref{ch:can}.
+
+\subsection{Skrivning}
+
+Mastern skickar registervärdet i de fyra databyten, \textbf{MSB först}. Slaven verkställer det
+hopsatta värdet \textbf{först när den femte byten är hel}.
+
+\subsection{Läsning}
+
+I slutet av kommandobyten \textbf{låser slaven registrets aktuella värde en gång}, in i sin
+svarsskiftare. De fyra databyten klockar sedan ut det värdet.
+
+\textbf{Låsningsregeln är en del av kontraktet, inte en implementationsdetalj.} De fyra byten hör
+alltid till \emph{ett} sammanhängande prov av registret, taget i ett ögonblick. Utan den regeln
+hade en \code{STATUS}-läsning kunnat bli ihopsydd av två tidpunkter --- TX-klar-biten från före en
+sändning och RX-giltig-biten från efter. Det hade varit en bugg som uppträder ungefär en gång på
+tusen och aldrig går att återskapa.
+
+\subsection{\texorpdfstring{\code{SS}}{SS}-reglerna}
+
+Tre regler, och alla tre har kostat någon en kväll:
+
+\begin{itemize}
+  \item \textbf{En transaktion per låg \code{SS}-period.} Mastern måste släppa \code{SS} hög
+    mellan transaktioner.
+  \item \textbf{Back-to-back fungerar inte, och misslyckas tyst.} En sjätte byte som kommer medan
+    \code{SS} fortfarande är låg \emph{kastas} --- den tolkas inte som en ny kommandobyte. Att
+    slaven är ledig räcker alltså inte.
+  \item \textbf{Avbrott har inga sidoeffekter.} Går \code{SS} hög före femte byten överges
+    transaktionen helt: ingenting verkställs, ingen trigger går. Det är vad som gör slaven
+    självläkande efter en glitch.
+\end{itemize}
+
+Det är därför \code{ByteTransport} i \kapref{ch:byte} har \code{select()} och \code{deselect()}
+som egna metoder: ramningen är drivrutinens beslut, inte transportens.
+
+\subsection{\texorpdfstring{\code{MISO}}{MISO} utanför en läsning}
+
+Byten mastern klockar ut \textbf{under kommandobyten} är meningslös. Slaven laddar sin
+svarsskiftare i \emph{slutet} av kommandobyten, så det som lämnar under den är rester från förra
+gången. \textbf{Kasta den.}
+
+\subsection{Ett komplett exempel}
+
+Att skicka en frame (\code{id 0x123}, \code{dlc 2}, data \code{AA BB}):
+
+\begin{console}
+Skriv TX_ID      : 81 00 00 01 23
+Skriv TX_DLC     : 82 00 00 00 02
+Skriv TX_DATA_LO : 83 AA BB 00 00
+Skriv TX_DATA_HI : 84 00 00 00 00
+Skriv TX_SEND    : 85 00 00 00 01
+Läs   STATUS     : 00 xx xx xx xx   -> MISO ger 00 00 00 00 under sändning,
+                                      sedan 00 00 00 01 när porten är fri igen.
+\end{console}
+
+Läs av kommandobyten i varje rad: \code{0x81} är skrivbiten plus index 1, alltså \code{TX_ID}.
+\code{0x00} på sista raden är en läsning av index 0.
+
+Notera \code{83 AA BB 00 00}: \textbf{databyte 0 i den mest signifikanta positionen}. Det är samma
+packning på båda sidor av ledningen.
+
+\section{Vad det kostar i tid}
+\label{sec:timing}
+
+En transaktion är 5 bytes = 40 bitar. Vid 1~MHz tar klockningen 40~µs, plus \code{SS}-hantering.
+Räkna med \textbf{40--50~µs per transaktion}:
+
+\begin{narrowtable}{@{}lrl@{}}
+\thead{Operation} & \thead{Transaktioner} & \thead{Ungefär} \\ \midrule
+\code{hasError()} & 1 & 45~µs \\
+\code{receive()}, ingen frame & 1 & 45~µs \\
+\code{receive()}, en frame & 6 & 270~µs \\
+\code{send()} & 6 & 270~µs \\
+\end{narrowtable}
+
+Sätt det mot CAN-sidan: en maximal CAN-frame är omkring 130 bitar, alltså \textbf{130~µs} vid
+1~Mbit/s.
+
+\begin{limitation}
+\textbf{En \code{send()} tar längre tid än framen den skickar.} SPI-länken, inte CAN-bussen, är
+flaskhalsen i den här konstruktionen.
+
+\textbf{Och pollningen kan missa frames.} Kontrollern buffrar inte: kommer två frames tätt inpå
+varandra och din \code{receive()} tar 270~µs, hinner den andra skriva över den första. Det är
+hårdvarans dokumenterade begränsning, inte din bugg --- men det är din kod som märker den.
+\end{limitation}

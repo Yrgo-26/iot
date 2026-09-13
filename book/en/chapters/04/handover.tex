@@ -1,0 +1,62 @@
+\section{What the hardware takes over}
+\label{sec:handover}
+
+CAN solves the same problems as \kapref{ch:frames}--\kapref{ch:bussar}, in silicon:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Mechanism} & \thead{Who does it in CAN} \\ \midrule
+Frame synchronisation & The controller: the SOF bit, and seven recessive bits as an end
+  marker. \\
+Length field & The controller: the DLC, four bits, 0--8 data bytes. \\
+Checksum & The controller: CRC-15, computed and checked by the same engine. \\
+Collision handling & The bus itself, through arbitration --- without a bus master and without
+  lost time. \\
+Acknowledgement & The controller: a single bit inside the frame, which every receiver pulls
+  low. \\
+Addressing & \textbf{Does not exist.} The identifier describes the content, and every node
+  filters for itself. \\
+Sequence number & \textbf{Does not exist.} If one is needed, the application has to put it in the
+  payload. \\
+Timeout and retransmission & A complete controller does it in hardware. \emph{This one does
+  not} --- see \secref{sec:limits}. \\
+\end{booktable}
+
+What is left for the software is therefore to hand over an identifier, a length and a few data
+bytes --- and to read off how it went.
+
+\begin{aside}
+\note CAN as a protocol --- the bus, the frame, bit stuffing, CRC-15, arbitration, bit timing and
+error handling --- is covered in full in the course's CAN book. This chapter assumes its chapters
+1, 2 and 7. Read those first; the rest of that book is further reading you can take when you need
+it.
+\end{aside}
+
+\section{The controller, and why a layer sits in between}
+\label{sec:layer}
+
+The controller is designed in VHDL by a parallel class. It is built for a caller in the same clock
+domain, and therefore signals with pulses that are \textbf{one clock cycle} long --- 20~ns at
+50~MHz.
+
+A processor polling over a serial bus sees the system a few tens of microseconds at a time at
+best. A 20~ns pulse is therefore gone thousands of cycles before the next poll arrives.
+
+That is why there are two layers between the controller and your code:
+
+\begin{console}
+                your C++ code
+                      |
+                     SPI                  5-byte transactions, <= 1 MHz
+                      |
+   spi_slave  ->  spi_reg_bridge          bytes become transactions
+                      |
+              register_bank               pulses become sticky, pollable bits
+                      |
+              can_controller              CAN in VHDL
+                      |
+                  the CAN bus
+\end{console}
+
+\textbf{The register bank is the layer that makes the design usable from software.} It catches
+the pulses and holds them as levels that you have to clear yourself. Every "write \code{0x1} here
+to acknowledge" in the register map is that mechanism.

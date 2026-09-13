@@ -1,0 +1,40 @@
+% Communication Protocols and Drivers - the course book, English edition.
+%
+% Built with LuaLaTeX; see the Makefile. The design lives in coursebook.sty one level up and is
+% shared with the Swedish edition, the front matter in front/, one chapter per lecture in
+% chapters/NN/ with one file per section, and the back matter in back/: the practice exam with
+% its answers.
+\documentclass[10pt, twoside, openright]{book}
+\usepackage[english]{coursebook}
+
+\begin{document}
+
+\frontmatter
+\input{front/title}
+\tableofcontents
+\input{front/preface}
+
+\mainmatter
+\input{chapters/01/chapter}
+\input{chapters/02/chapter}
+\input{chapters/03/chapter}
+\input{chapters/04/chapter}
+\input{chapters/05/chapter}
+\input{chapters/06/chapter}
+\input{chapters/07/chapter}
+\input{chapters/08/chapter}
+\input{chapters/09/chapter}
+\input{chapters/10/chapter}
+\input{chapters/11/chapter}
+\input{chapters/12/chapter}
+\input{chapters/13/chapter}
+\input{chapters/14/chapter}
+\input{chapters/15/chapter}
+
+\appendix
+\input{back/solutions}
+\input{back/exam/about}
+\input{back/exam/paper}
+\input{back/exam/answers}
+
+\end{document}

@@ -1,0 +1,19 @@
+\chapter{SPI and the transaction protocol}
+\label{ch:spi}
+
+\lecture{Lecture 8}{The CAN driver}
+
+{\large\itshape The other half of the contract: how the registers are actually reached.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item SPI on four wires, and why full duplex matters.
+  \item The transaction: one command byte plus four data bytes, always exactly five.
+  \item Latching on a read, commitment on a write, abort on \code{SS}.
+  \item What it costs in time, and why the SPI link is the bottleneck.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/08/transaction}
+\input{chapters/08/summary}
+\input{chapters/08/exercises}

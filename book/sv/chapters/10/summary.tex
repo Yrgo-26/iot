@@ -1,0 +1,16 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item \code{send()}: validera, kontrollera status, skriv fyra dataregister, trigga \textbf{sist}.
+    Triggern betyder "börja sända nu", och kontrollern läser då de övriga registren.
+  \item \code{send()} returnerar \code{false} av två skäl, och bara det ena går över av sig självt.
+    \code{while (!send(frame)) {}} hänger för alltid på en ogiltig frame.
+  \item \code{TX_DATA_LO} bär databyte 0--3. Förväxling ger en frame som kommer fram bakvänd ---
+    allt \emph{ser} ut att fungera.
+  \item \code{receive()} maskerar mot \code{dlc} trots att hårdvaran redan nollar: nollorna är
+    kontrollerns garanti, inte framens innehåll.
+  \item \code{RX_ACK} skrivs sist. Glöms den läser du samma frame i en oändlig loop.
+  \item \code{clearError()} skriver \code{0x0}. Skriver du \code{0x1} går felbiten aldrig ned.
+  \item \code{send()} väntar inte. Väntan är ett nytt försök, och sker hos anroparen.
+\end{itemize}

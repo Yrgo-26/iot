@@ -1,0 +1,119 @@
+\section{The wiring}
+\label{sec:wiring}
+
+\subsection{SPI between the boards}
+
+Four wires plus power and ground, according to the contract's pin configuration. Two things are
+worth spelling out:
+
+\textbf{\code{VDDIO2} first.} \code{PORTC} is the MVIO domain and is fed from there. Without that
+connection the port does nothing at all, and the symptom looks exactly like a broken SPI
+implementation.
+
+\textbf{A common ground is not optional.} Two boards without a common ground do not communicate,
+and the symptom is incomprehensible.
+
+\subsection{The CAN side}
+
+The FPGA node's CAN side is a \textbf{single-wire open-drain bus} on three GPIO pins:
+\code{tx_bus} (what the node drives), \code{bus_en} (whether it drives at all) and \code{rx_bus}
+(the bus level coming in).
+
+For a bus analyser to see the traffic, that single wire has to become a real
+\textbf{differential} CAN bus. That is the transceiver's job, and its transmit input is to be
+\textbf{low for a dominant bit}:
+
+\begin{narrowtable}{@{}llll@{}}
+\thead{\code{bus_en}} & \thead{\code{tx_bus}} & \thead{The node} & \thead{Transceiver input} \\ \midrule
+0 & --- & does not drive & 1 (recessive) \\
+1 & 0 & dominant & 0 \\
+1 & 1 & recessive & 1 \\
+\end{narrowtable}
+
+How the two signals are combined onto the single wire is the hardware side's part of the wiring;
+check it before you connect anything. A node whose \code{bus_en} has been ignored drives the bus
+all the time and blocks everybody else.
+
+\textbf{Termination: 120~\textohm{} at each end}, not in the middle and no more than two. A badly
+terminated bus often works anyway on a short cable, and stops working precisely when you have
+started to trust it.
+
+\section{The ladder}
+\label{sec:ladder}
+
+Climb it in order. Every rung has a receipt of its own, and the point is to \textbf{never have
+more than one unknown at a time}. Skip a rung and you are debugging four layers at once.
+
+\begin{booktable}{@{}llL@{}}
+\thead{Rung} & \thead{Do} & \thead{Receipt} \\ \midrule
+0 & Power and ground & The MVIO status reports that \code{VDDIO2} is within range. \\
+1 & \code{MOSI} to \code{MISO}, without the FPGA & You get back exactly the byte you sent. Try
+  \code{0x00}, \code{0xFF}, \code{0xAA}, \code{0x55}. \\
+2 & Connect the FPGA; write and read \code{TX_ID} & \code{0xFFFFFFFF} reads back as
+  \code{0x000007FF}. \\
+3 & Read \code{STATUS} repeatedly & \code{0x00000001} --- TX ready set, the others low. \\
+4 & Connect the transceiver; run a \code{send()} & Activity on the bus; \code{STATUS} bit 0 goes
+  low and comes back. \\
+5 & Let a second node transmit & \code{receive()} returns \code{true} with the right content. \\
+\end{booktable}
+
+Two of the rungs deserve a comment.
+
+\textbf{Rung 1 is \code{AvrSpiTransport}'s only test.} It is the only class in the project that no
+automated test covers, since it talks to a physical register. If the loopback does not work, the
+fault is in your code or in the configuration --- the FPGA is not connected and cannot be the
+cause.
+
+\textbf{Rung 2 is the decisive one.} The masking to eleven bits proves that you are talking to the
+\emph{register bank} and not to an echo of your own wire. A loopback gives back what you sent; a
+register bank gives back what it stored.
+
+\section{Troubleshooting}
+\label{sec:troubleshooting}
+
+\begin{booktable}{@{}lLl@{}}
+\thead{Symptom} & \thead{Likely cause} & \thead{Check} \\ \midrule
+Nothing at all, no clock pulses & The pin mux is not set & Rung 1 \\
+The port does nothing & \code{VDDIO2} not powered & The MVIO status \\
+Every read gives \code{0x00000000} & \code{MISO} not connected, or the wrong pin & Swap
+  \code{MOSI}/\code{MISO} and see whether it changes \\
+Every read gives \code{0xFFFFFFFF} & \code{MISO} floating & The wiring \\
+The reads are one byte out & The data register is not read in \code{transfer()} & \kapref{ch:avr} \\
+Right for small numbers, not large & Sign extension in \code{readReg()} & \kapref{ch:byte} \\
+The second transaction is ignored & Two transactions during one low \code{SS} & \kapref{ch:spi} \\
+The frame arrives back to front & \code{TX_DATA_LO}/\code{HI} swapped & \kapref{ch:driver} \\
+The same frame over and over & \code{RX_ACK} is not written & \kapref{ch:driver} \\
+\code{hasError()} always \code{true} & \code{clearError()} writes \code{0x1} & \kapref{ch:driver} \\
+The bus constantly dominant & A node's \code{bus_en} ignored & The wiring table \\
+Works on a short cable, not a long & Termination & 120~\textohm{} at each end \\
+\end{booktable}
+
+\subsection{The procedure}
+
+\begin{enumerate}
+  \item Which rung was the last one to give the right receipt?
+  \item What is the \textbf{one} thing that has been added since then?
+  \item Formulate a hypothesis about what is wrong.
+  \item Decide which measurement would settle the matter.
+  \item Make the measurement.
+\end{enumerate}
+
+\begin{aside}
+\note Swapping wires until it works is not troubleshooting, and it takes longer. The difference
+between the two ways of working is about an afternoon per fault, and it is the most transferable
+skill in the whole course.
+\end{aside}
+
+\subsection{Debugging somebody else's half}
+
+A bug during bring-up can be in your code, in the other group's VHDL, or in a jumper wire. Three
+rules make it manageable:
+
+\begin{itemize}
+  \item \textbf{Suspect your own half first.} Not out of humility, but because you can change it
+    and measure on it.
+  \item \textbf{Prove it before you report it.} "It does not work" is not a fault report. "Rung 2
+    gives \code{0x000007FF} for \code{TX_ID} but \code{0x00000000} for \code{TX_DLC}" is.
+  \item \textbf{Change one thing at a time, and write down what.} Two people debugging the same
+    wiring at the same time make each other's measurements meaningless.
+\end{itemize}

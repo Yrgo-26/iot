@@ -1,0 +1,63 @@
+\section*{Kapitel 10 --- Drivrutinen}
+\addcontentsline{toc}{section}{Kapitel 10 --- Drivrutinen}
+
+\solution{ex:10:1}{Bryt koden med flit}
+Uppgiften ber om kodändringar; utfallen beskrivs här.
+\ans{a} Triggern skrivs innan dataregistren, så kontrollern läser föregående frames innehåll.
+På bussen syns en nod som ligger exakt en frame efter --- den skickar alltid det du bad om
+\emph{förra} gången.
+\ans{b} Databyte 4--7 hamnar i \code{TX_DATA_LO}. En frame med \code{dlc = 2} och data
+\code{AA BB} skickas som två nollbytes; mottagaren får rätt längd och fel innehåll.
+\ans{c} \code{AA BB CC DD} kommer fram som \code{DD CC BB AA}. Framen kommer fram, med rätt
+längd --- bara bakvänd.
+\ans{d} Felbiten går aldrig ned, så \code{hasError()} returnerar \code{true} för alltid efter
+första felet och all felhantering ovanför slutar fungera.
+\ans{e} \code{STATUS} bit 1 står kvar. Varje \code{receive()} returnerar \code{true} med samma
+frame, i en oändlig loop, och ingen ny frame kan tas emot.
+\ans{f} Ingenting syns i utskriften, och det är poängen. \code{PrintTransport} visar vilka bytes
+som gick ut, och de är korrekta --- felet ligger i vad drivrutinen \emph{lämnar ifrån sig} till
+anroparen, alltså i \code{frame.data} ovanför \code{dlc}. Det fångas av ett testfall som levererar
+en frame med \code{dlc = 2} efter en med \code{dlc = 8} och kontrollerar att de sex översta
+bytesen är nollställda, vilket kräver en dubblare som modellerar hårdvarans beteende --- alltså
+\code{BankTransport} i \kapref{ch:testning}, inte den skriptade.
+\ans{g} Skrivningar sker mitt i en pågående sändning och skriver över data kontrollern använder.
+Utfallet beror på timingen, vilket gör felet sporadiskt.
+
+\solution{ex:10:2}{Räkna transaktioner}
+\ans{a} Sex: en \code{STATUS}-läsning och fem skrivningar.
+\ans{b} En --- \code{STATUS}-läsningen. Därefter returnerar den \code{false}.
+\ans{c} \textbf{Noll.} Valideringen sker före allt annat, så en ogiltig frame kostar inte en enda
+transaktion.
+\ans{d} En.
+\ans{e} Sex: \code{STATUS}, \code{RX_ID}, \code{RX_DLC}, två dataregister och \code{RX_ACK}.
+
+Fråga c är poängen med ordningen: en anropare som råkar skicka ogiltiga frames i en loop belastar
+inte bussen alls.
+
+\solution{ex:10:3}{Den oändliga loopen}
+Uppgiften ber om kod; utfallen beskrivs här.
+\ans{a} Loopen snurrar tills hårdvaran blir ledig, och avslutas sedan normalt. Det är det avsedda
+beteendet.
+\ans{b} Loopen snurrar för alltid. \code{isValid()} returnerar \code{false} oavsett hur länge man
+väntar, och ingenting i systemet kommer att ändra på det.
+\ans{c} Validera före loopen och returnera direkt vid en ogiltig frame, och räkna försök i loopen
+så att även en hårdvara som aldrig blir ledig ger upp. Se \secref{sec:waiting}.
+
+\solution{ex:10:4}{Designfrågor}
+\ans{a} Till exempel en uppräkning som returvärde i stället för \code{bool}: \code{Accepted},
+\code{Busy}, \code{Invalid}. Kostnaden för \code{Stub} är liten --- den skulle returnera
+\code{Accepted} eller \code{Invalid} --- men kostnaden för \emph{interfacet} är att det växer, och
+varje anropare måste hantera fler fall. Avvägningen är att en \code{bool} är enklare att
+implementera och svårare att använda rätt.
+\ans{b} Ett testfall som levererar en frame med \code{dlc = 8} och därefter en med \code{dlc = 2}.
+Utan maskering bär den andra framen kvar sex bytes från den första, och applikationen kan inte
+skilja dem från riktig data. På riktig hårdvara krävs dessutom bara att hårdvarugruppen ändrar
+när dataackumulatorn nollställs, eller att du lånar ett kort byggt av en annan grupp.
+\ans{c} Drivrutinen observerar att \code{STATUS} bit 0 går låg vid triggern och kommer tillbaka
+strax därefter --- exakt som vid en lyckad sändning --- och att felflaggan är satt. Den kan
+\emph{inte} observera att det var en arbitrering som förlorades snarare än ett stoppfel, en
+trasig CRC eller en mottagen fjärrframe, och den kan inte se vilken nod som vann eller vilken
+frame som gick igenom i stället.
+\ans{d} Att polla oftare, alltså att göra mindre arbete mellan \code{receive()}-anropen. Gränsen
+du inte kommer förbi är att en \code{receive()} tar omkring 270~µs medan en frame tar 130~µs: en
+sändare som kör kontinuerligt hinner alltid skicka fler frames än du hinner hämta.

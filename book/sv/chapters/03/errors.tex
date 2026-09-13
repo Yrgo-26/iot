@@ -1,0 +1,32 @@
+\section{En deterministisk felmodell}
+\label{sec:errors}
+
+En buss som alltid levererar varje byte i rätt ordning är inte en buss, utan ett funktionsanrop med
+extra steg. Verkliga bussar tappar bytes, ändrar bitar och fördröjer leveranser.
+
+Problemet med att testa felhantering är att verkliga fel är slumpmässiga. Ett test som ibland
+fallerar säger ingenting, och ett fel som inträffade en gång går inte att återskapa.
+
+\textbf{Lösningen är att göra felen deterministiska.} Bussimplementationen i kursens simulering
+räknar bytes och gör exakt samma sak varje körning:
+
+\begin{cppcode}
+// Deterministic fault injection: byte five is dropped, every run, every time.
+if (5U == ++myByteCounter) { return; }
+\end{cppcode}
+
+Tre fel räcker för att täcka det mesta:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Fel} & \thead{Vad som händer} \\ \midrule
+\textbf{Tappad byte} & Alla följande fält förskjuts. Parsern läser fel längd, väntar på fel antal
+  bytes, och faller till slut på checksumman. \\
+\textbf{Ändrad bit} & Framen är strukturellt korrekt --- rätt längd, rätt fältplacering --- men
+  checksumman går inte ihop. Det är precis det fall checksumman finns för. \\
+\textbf{Fördröjning} & Framen kommer fram, hel och riktig, men senare än väntat. Ingenting går
+  sönder, och det är poängen: en korrekt parser bryr sig inte om \emph{när} bytesen kommer. \\
+\end{booktable}
+
+Det tredje fallet är värt att stanna vid. En parser som fungerar när bytesen kommer tätt men går
+sönder när de kommer glest har ett dolt tidsberoende, och det är en bugg som aldrig visar sig
+förrän systemet flyttas till långsammare hårdvara.

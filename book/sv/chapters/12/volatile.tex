@@ -1,0 +1,155 @@
+\section{\texorpdfstring{\code{volatile}}{volatile}}
+\label{sec:volatile}
+
+Hittills har koden bara rört vanligt minne. Den här filen rör \textbf{hårdvara}, och då slutar ett
+av kompilatorns grundläggande antaganden att gälla.
+
+Kompilatorn antar att ingen annan än programmet ändrar en variabel. Med den utgångspunkten är
+följande loop oändlig, och optimeraren får ta bort den:
+
+\begin{cppcode}
+while ((SPI0.INTFLAGS & SPI_IF_bm) == 0U)
+{
+}
+\end{cppcode}
+
+\code{INTFLAGS} läses en gång, resultatet läggs i ett register, och eftersom ingenting i loopen
+ändrar det är villkoret konstant. Med \code{-O2} blir resultatet antingen en loop som aldrig
+avslutas eller en loop som optimeras bort helt.
+
+Men \code{INTFLAGS} \emph{ändras} --- av periferin, utan att programmet gör något.
+\code{volatile} är hur man säger det: \emph{läs om den här variabeln varje gång; slå inte ihop
+läsningar, flytta dem inte, ta inte bort dem.}
+
+I \code{<avr/io.h>} är periferiregistren redan deklarerade \code{volatile}. Du behöver inte skriva
+kvalificeraren --- men du behöver veta att den är där, och varför.
+
+\subsection{Vad \texorpdfstring{\code{volatile}}{volatile} inte är}
+
+Det är \textbf{inte} en synkroniseringsmekanism. Det garanterar inte atomicitet och ingen ordning
+mot annat än andra \code{volatile}-åtkomster. I trådad kod på en värddator är \code{volatile}
+nästan alltid fel verktyg; \code{std::atomic} är rätt.
+
+Här handlar det om något annat: ett register som en periferi ändrar under näsan på programmet. Det
+är precis det fall \code{volatile} finns för.
+
+\subsection{Var det får stå}
+
+\textbf{Bara i transportens implementationsfil.}
+
+Det är hela poängen med sömmen i \kapref{ch:byte}. Allt ovanför --- \code{Spi}, \code{Stub},
+\code{Interface}, \code{EchoNode} --- är vanlig, portabel C++ som kompilerar och körs på din
+laptop. En granskare som ser \code{volatile} i någon annan fil ska fråga varför.
+
+\section{SPI-periferin}
+\label{sec:periph}
+
+Fyra register räcker för en polld master: ett för enable och klockinställningar, ett för läge, ett
+för statusflaggor, och ett för data.
+
+\begin{cppcode}
+void AvrSpiTransport::init() noexcept
+{
+    // Route SPI0 to PORTC (ALT1): PC0 = MOSI, PC1 = MISO, PC2 = SCK, PC3 = SS.
+    PORTMUX.SPIROUTEA = PORTMUX_SPI0_ALT1_gc;
+
+    // MOSI, SCK and SS are outputs; MISO is an input. SS idles high.
+    PORTC.DIRSET = PIN0_bm | PIN2_bm | PIN3_bm;
+    PORTC.DIRCLR = PIN1_bm;
+    PORTC.OUTSET = PIN3_bm;
+
+    // Master, MSB first, 4 MHz / 4 = 1 MHz, enabled.
+    SPI0.CTRLA = SPI_MASTER_bm | SPI_PRESC_DIV4_gc | SPI_ENABLE_bm;
+
+    // SPI mode 0, and software-controlled slave select.
+    SPI0.CTRLB = SPI_MODE_0_gc | SPI_SSD_bm;
+}
+\end{cppcode}
+
+Fem rader, och tre av dem är fällor:
+
+\textbf{Pinnmuxen.} Utan den raden ligger periferin på sin standardmux, och de fyra ledningar du
+kopplat är helt tysta. Symptomet är det mest förvirrande som finns: programmet kör, inga fel
+rapporteras, och logikanalysatorn visar ingenting alls. \textbf{Sätt den först.}
+
+\textbf{Slave select disable.} Utan den övervakar periferin \code{SS}-pinnen, och en låg nivå där
+får mastern att tro att en annan master tagit över bussen: den lämnar masterläget. Men här är det
+\emph{din egen kod} som drar \code{SS} låg vid varje \code{select()}. Utan biten skjuter
+drivrutinen sig själv i foten vid första transaktionen.
+
+\textbf{Prescalern.} Protokollet garanterar ingenting över 1~MHz. Kör inte snabbare för att det
+går.
+
+
+
+\subsection{Transporten}
+
+\begin{cppcode}
+void AvrSpiTransport::select() noexcept   { PORTC.OUTCLR = PIN3_bm; }
+void AvrSpiTransport::deselect() noexcept { PORTC.OUTSET = PIN3_bm; }
+
+std::uint8_t AvrSpiTransport::transfer(const std::uint8_t byte) noexcept
+{
+    SPI0.DATA = byte;
+
+    while ((SPI0.INTFLAGS & SPI_IF_bm) == 0U)
+    {
+    }
+
+    return SPI0.DATA;
+}
+\end{cppcode}
+
+\textbf{Läsningen av \code{SPI0.DATA} nollställer flaggan.} Hoppa över den och nästa
+\code{transfer()} ser en flagga som redan står kvar, returnerar omedelbart, och läser en byte som
+inte hunnit komma in. Symptomet är data som ligger \textbf{en byte efter} genom hela
+transaktionen, vilket är svårt att se och lätt att missta för ett bitordningsfel.
+
+\textbf{Ingen fördröjning behövs kring \code{SS}.} Protokollet kräver 60~ns setup och hold; en
+enda portskrivning på en 4~MHz-MCU är redan flera gånger långsammare än så.
+
+\section{MVIO: två spänningar i samma chip}
+\label{sec:mvio}
+
+Det här är den elegantaste detaljen i hela konstruktionen.
+
+\textbf{Problemet:} MCU-kortet körs på 5~V. FPGA-kortets GPIO är 3,3~V och tål inte 5~V. Den
+vanliga lösningen är en nivåomvandlare på varje ledning --- en komponent till, fyra kopplingar
+till, och fyra saker till som kan sitta fel.
+
+\textbf{Lösningen:} AVR-DB-familjen har \textbf{MVIO} (\emph{Multi-Voltage I/O}). \code{PORTC}
+matas inte från \code{VDD} som resten av chippet, utan från en egen pinne: \code{VDDIO2}.
+
+Koppla \code{VDDIO2} till FPGA-kortets 3,3~V-rail, och hela \code{PORTC} blir en
+3,3-voltsdomän --- medan kärnan och övriga portar kör oförändrat på 5~V. \textbf{Ingen
+nivåomvandlare.}
+
+Det är därför pinnkonfigurationen är en del av kontraktet och inte varje grupps eget val: byter du
+till standardmuxen hamnar ledningarna i \code{VDD}-domänen, och då behövs nivåomvandlaren igen
+--- eller så går FPGA-ingången sönder.
+
+\begin{aside}
+\note \code{VDDIO2} måste vara matad \textbf{innan} \code{PORTC} gör någonting alls. Är den inte
+det är portens beteende odefinierat. Statusregistret för MVIO säger om den är det, och en
+kontroll av det vid uppstart är den enskilt mest värdefulla raden kod inför bring-upen: en
+bortglömd \code{VDDIO2}-koppling ser ut precis som en trasig SPI-implementation, och den
+kontrollen skiljer de två fallen åt på en sekund.
+\end{aside}
+
+\section{Friställd C++}
+\label{sec:freestanding}
+
+Firmware byggs för ett \textbf{friställt} mål. En del av C++ följer inte med:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Finns inte} & \thead{Vad du gör i stället} \\ \midrule
+Heap (\code{new}, \code{std::vector}) & Statiskt allokerade objekt; allt har känd storlek. \\
+Undantag & Returkoder --- vilket hela interfacet redan bygger på. \\
+RTTI (\code{dynamic_cast}) & Virtuella funktioner räcker; du castar aldrig nedåt. \\
+\code{<iostream>} & UART-utskrift, eller en lysdiod. \\
+\end{booktable}
+
+\textbf{Lägg märke till att ingenting av det påverkar designen.} Interfacet returnerar \code{bool}
+i stället för att kasta. \code{Frame} är en aggregate med statisk storlek. Ingen klass använder
+heapen. Det var inte tur --- projektets kodkonventioner är skrivna för ett friställt mål från
+början, och det här är kapitlet där det lönar sig.

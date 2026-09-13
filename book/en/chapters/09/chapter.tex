@@ -1,0 +1,19 @@
+\chapter{The transport seam and the register access}
+\label{ch:byte}
+
+\lecture{Lecture 9}{The CAN driver}
+
+{\large\itshape The protocol becomes code, and the driver becomes runnable on a laptop.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item \code{ByteTransport}: why \code{Interface} was not enough.
+  \item Register indices, status masks and the command bit as named constants.
+  \item \code{readReg()} and \code{writeReg()}, line by line.
+  \item The sign extension bug, which is the most common one in the project.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/09/transport}
+\input{chapters/09/summary}
+\input{chapters/09/exercises}

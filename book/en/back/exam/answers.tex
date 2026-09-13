@@ -1,0 +1,196 @@
+\chapter{Answers to the practice test}
+\label{ch:ovningssvar}
+
+The calculations are included, not just the results.
+
+\section*{Part A}
+
+\solution{ex:d:1}{Build two frames}
+\ans{a} \code{LEN = 0} since a \code{StatusRequest} has no payload, \code{TYPE = 0x02},
+\code{DST = 0x25}, \code{SRC = 0x17}, \code{SEQ = 0x7F05}.
+
+The checksum: $\mathtt{A5} + \mathtt{F7} + \mathtt{00} + \mathtt{02} + \mathtt{25} + \mathtt{17} +
+\mathtt{7F} + \mathtt{05} = 165 + 247 + 0 + 2 + 37 + 23 + 127 + 5 = 606 = \mathtt{0x025E}$.
+
+\begin{console}
+A5 F7 00 02 25 17 7F 05 02 5E
+\end{console}
+
+\ans{b} Now the addresses swap places: \code{DST = 0x17}, \code{SRC = 0x25}. \code{LEN = 1},
+\code{TYPE = 0x03}, and one data byte \code{0x16}. \code{SEQ} is the same.
+
+The checksum: $606 - \mathtt{0x02} + \mathtt{0x03} + \mathtt{0x01} + \mathtt{0x16} =
+606 - 2 + 3 + 1 + 22 = 630 = \mathtt{0x0276}$.
+
+\begin{console}
+A5 F7 01 03 17 25 7F 05 16 02 76
+\end{console}
+
+\solution{ex:d:2}{The frame parser}
+\ans{a} In \code{WaitForSof1} the parser discards every byte that is not \code{0xA5}. It stands
+still until the stream starts to look like a frame. In \code{WaitForSof2} it waits for
+\code{0xF7}, and moves on to \code{WaitForLen} if it arrives.
+
+\ans{b} The \emph{almost} right answer is to go back to \code{WaitForSof1} and discard the byte.
+The \emph{right} one is to stay in \code{WaitForSof2} if the byte is \code{0xA5}.
+
+The reason: the byte that just arrived may be the first byte of a real frame. If the parser
+discards it, it misses a valid frame beginning immediately after a false start of SOF --- which
+happens as soon as \code{0xA5} occurs in a payload just before a real frame start.
+
+\solution{ex:d:3}{Bus and routing}
+\ans{a} In the node. The bus is a physical wire delivering every byte to every node; it cannot
+read addresses, and it knows nothing about frames. Every node therefore has to compare \code{DST}
+with its own address itself.
+
+\ans{b} Ignore the frame entirely. It should \emph{not} send a \code{Nack}, since the frame is not
+faulty --- it is simply addressed to somebody else. If every node sent a \code{Nack} for every
+frame it was not the receiver of, every message on a bus with $n$ nodes would generate $n-2$
+incorrect negative acknowledgements, and the sender would also be unable to tell them from a real
+error.
+
+\solution{ex:d:4}{Reliability}
+\ans{a} A starts a timer when the frame is sent. If no \code{Ack} arrives before the timer expires,
+A retransmits the frame and restarts the timer, up to a fixed number of attempts; after that a
+permanent error is reported.
+
+\code{SEQ} is to be the \textbf{same}. A new sequence number would make the retransmission a new
+message, and B would not be able to recognise it as a repeat --- which is exactly what duplicate
+detection needs.
+
+\ans{b} B is to \textbf{send \code{Ack} again}, and \textbf{not} run the application logic a
+second time.
+
+Not running the logic again is the point of duplicate detection: the command has already been
+carried out. Acknowledging anyway is the part that gets forgotten --- A is still waiting for its
+acknowledgement, and silence only leads to yet another retransmission and thereby to an endless
+cycle.
+
+\solution{ex:d:5}{Byte stream and error model}
+\ans{a} At index \textbf{4} (zero-indexed): \code{32 74 00 FF} is junk, and \code{A5 F7} at index
+4--5 is the SOF.
+
+The parser discards the preceding bytes: they are received in \code{WaitForSof1} and rejected one
+by one since none of them is \code{0xA5}.
+
+\ans{b} \code{LEN} is still 3, so the parser collects three data bytes --- but they are now
+\code{10 30 02} instead of \code{10 20 30}. It then reads \code{C2} as the first checksum byte and
+waits for the second.
+
+The parser therefore ends up in \code{WaitForChk2} and stays there until the next byte arrives,
+whatever it is. When it does, the framing is complete but the checksum does not match, so
+\code{extractFrame()} returns \code{false} and the frame is rejected.
+
+Note that \code{isFrameReady()} may very well become true --- the framing succeeded. It is the
+validation that catches the error, and that is why the two questions are kept apart.
+
+\section*{Part B}
+
+\solution{ex:d:6}{The CAN bus}
+\ans{a} The identifier describes \textbf{what the frame contains} --- not who it is for. The two
+roles are:
+\begin{enumerate}
+  \item \textbf{Content:} the receivers filter on it and decide for themselves whether the frame
+    concerns them.
+  \item \textbf{Priority:} it decides who wins an arbitration, where a lower numerical value wins.
+\end{enumerate}
+
+\ans{b} \textbf{B wins}, since \code{0x0FF} is numerically lower than \code{0x100}. In binary,
+eleven bits: A transmits \code{00100000000} and B \code{00011111111}, and at bit 3 A transmits
+recessive where B transmits dominant.
+
+The loser A detects it immediately --- it transmits a recessive bit and reads back a dominant one
+--- stops transmitting, becomes a receiver for B's frame, and tries again when the bus is free.
+
+No bus master is needed since the bus is itself an AND function: a dominant bit overwrites a
+recessive one, so the conflict is resolved by the electronics as it arises. No frame is destroyed
+and no time is lost.
+
+\ans{c} Three of the following: frame synchronisation (the controller, SOF and EOF), the length
+field (the controller, the DLC), the checksum (the controller, CRC-15), the acknowledgement (the
+controller, the ACK bit inside the frame), collision handling (the bus itself, through
+arbitration).
+
+\solution{ex:d:7}{The register map}
+\ans{a} Data byte 0 sits in the most significant bits, and \code{TX_DATA_LO} carries the
+\emph{first} four bytes:
+
+\begin{console}
+TX_ID      = 0x000002A7
+TX_DLC     = 0x00000005
+TX_DATA_LO = 0x01020304
+TX_DATA_HI = 0x05000000
+TX_SEND    = 0x00000001
+\end{console}
+
+The order matters because the write to \code{TX_SEND} does not store a value but \emph{triggers a
+transmission}. The controller then reads the other registers. If the trigger is written first, the
+previous frame's contents are sent.
+
+\ans{b} \code{RX_ID = 0x481} gives the identifier \textbf{\code{0x481}} (within 11 bits, so
+valid). \code{RX_DLC = 3} means three data bytes, and \code{RX_DATA_LO = 0xDEADBE00} gives bytes
+0--3 as \code{DE AD BE 00}. The frame therefore contains \textbf{\code{DE AD BE}}.
+
+\code{frame.data[3]} to \code{frame.data[7]} are to be \textbf{zero}. The driver is to mask
+against \code{dlc}: the bytes above the received length are not the frame's content, even if the
+hardware happens to zero them.
+
+\ans{c} \code{RX_ACK}, with the value \code{0x1} --- bit 0 has to be set.
+
+If it is forgotten, \code{STATUS} bit 1 stays set forever. Every \code{receive()} then returns
+\code{true} with the same frame, in an endless loop, and no new frame can be received.
+
+\solution{ex:d:8}{The SPI transaction}
+The command byte is \code{W} in bit 7, zeroes in bits 6--4, and the register index in bits 3--0.
+
+\ans{a} \code{0x81} = write bit set, index 1: a \textbf{write to \code{TX_ID}} with the value
+\code{0x000007FF}. That is the largest value the register can hold --- eleven bits of ones.
+
+\ans{b} \code{0x85} = write, index 5: a \textbf{write to \code{TX_SEND}} with the value
+\code{0x1}. It \textbf{triggers a transmission}; the register stores nothing.
+
+\ans{c} \code{0x8B} = write, index 11: a \textbf{write to \code{ERROR_FLAGS}} with the value
+\code{0x0}. That is the \emph{only} write that clears the error bit --- a non-zero value would have
+been ignored.
+
+\ans{d} \code{0xC2} = \code{1100 0010}. Bit 7 is set (write) \emph{and bit 6 is set}, but bits
+6--4 are reserved and have to be zero. The command is therefore \textbf{invalid}: no write is
+committed, no read is latched. The slave consumes all five bytes anyway and returns to idle, and
+reports nothing --- there is no error channel at this layer.
+
+\ans{e} A read has bit 7 low, so the command byte is just the index. \code{RX_DLC} has index 7,
+and the four data bytes are dummy bytes:
+
+\begin{console}
+07 00 00 00 00
+\end{console}
+
+\solution{ex:d:9}{Sticky bits and limitations}
+\ans{a} At 50~MHz one clock cycle is 20~ns, and 40~µs corresponds to $40 \cdot 10^{-6} \cdot 50
+\cdot 10^{6} = 2000$ cycles. The probability that a poll happens to hit the single cycle the pulse
+lasts is therefore about 1 in 2000: the software would miss nearly every event. The register bank
+turns the pulse into a \textbf{level that stays}, so that it can be polled.
+
+The clearing has to be a write because an automatic clear on a read makes it impossible to read
+the status twice --- and thereby impossible to check a bit first and act on it afterwards. An
+explicit clear also separates \emph{I have seen the event} from \emph{I have handled it}, and it
+is the software, not the hardware, that knows when the latter is true.
+
+\ans{b} The driver is to wait until \code{STATUS} bit 0 comes back --- the port is free --- and
+\textbf{then read \code{ERROR_FLAGS}}. If the error bit is set, the transmission did not go
+through.
+
+It still \textbf{cannot} find out \emph{why}. The error flag is a single bit for four causes: lost
+arbitration, stuff error, failed CRC and a received remote frame. Retry logic treating them
+differently therefore cannot be written against this interface.
+
+\ans{c} \code{ERROR_FLAGS} is a latch-and-clear-on-zero construction: \textbf{only} a write where
+the whole word is zero clears the latch. A write of \code{0x1} does nothing at all.
+
+The symptom: the error bit never goes low. \code{hasError()} returns \code{true} forever after the
+first error, and all error handling above stops working --- a retry loop reading the error flag
+will believe that every transmission fails.
+
+It is \textbf{not} discovered by a test that only checks which bytes were sent, since the
+transaction looks correct. It is discovered by a test against a simulated register bank, which
+models the clearing rule --- or, considerably later and more expensively, at bring-up.

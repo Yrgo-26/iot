@@ -1,0 +1,45 @@
+\section*{Kapitel 5 --- Framen i kod, och den första testsviten}
+\addcontentsline{toc}{section}{Kapitel 5 --- Framen i kod}
+
+\solution{ex:5:1}{Förutsäg}
+\ans{a} Typiskt 12 bytes, inte 11. Kompilatorn lägger in utfyllnad så att \code{id}
+(\code{std::uint16_t}) hamnar på jämn adress, och avslutar strukten på en storlek som är en
+multipel av dess strängaste alignment.
+\ans{b} Ja. \code{f.data[7]} är \code{0}: aggregate-initiering nollställer de medlemmar som inte
+anges.
+\ans{c} Raden slutar kompilera. En användardeklarerad konstruktor gör typen till en icke-aggregate,
+och då finns ingen konstruktor som tar \code{(0x123U, 2U, {...})}. Det är precis skälet till att
+\code{Frame} inte har någon.
+
+\solution{ex:5:2}{constexpr}
+\ans{a} Att \code{isValid()} går att utvärdera vid kompileringstillfället --- annars är den inte
+ett giltigt \code{static_assert}-villkor. Det bevisar samtidigt att funktionen är fri från
+sidoeffekter.
+\ans{b} Ingenting. Kontrollen sker när programmet byggs; i den färdiga binären finns ingen kod för
+den alls.
+
+\solution{ex:5:3}{Läs sviten}
+\ans{a} \code{0x7FF} och \code{0x800} för \code{id}, \code{8} och \code{9} för \code{dlc} --- det
+största som ska accepteras och det minsta som ska avvisas. Buggar bor på gränserna: ett värde mitt
+i intervallet passerar både en korrekt och en felaktig jämförelse.
+\ans{b} Fallet som kontrollerar att \code{dlc = 8} accepteras skulle fallera; alla andra vore
+gröna. Det är därför paret behövs och inte bara det ena värdet.
+\ans{c} Ja --- att \code{MaxDataLen} är samma tal som arrayens storlek kontrolleras inte, och
+kan inte kontrolleras utifrån. En grön svit betyder att koden är rätt på de punkter sviten frågar
+om, inte att den är rätt.
+
+\solution{ex:5:4}{Bryt koden}
+\ans{a} Fallet som accepterar det största giltiga \code{id}:t, alltså \code{0x7FF}. Utskriften
+namnger uttrycket, filen och raden.
+\ans{b} Kortare än att gissa: testnamnet pekar ut kravet, Arrange-delen förutsättningen, och
+Assert-raden det förväntade värdet --- först därefter behöver man öppna sin egen kod.
+\ans{c} Återställ koden --- och notera att den felaktiga versionen passerade alla andra testfall.
+Ett enda tecken skilde en korrekt implementation från en som avvisar var åttonde giltig frame.
+
+\solution{ex:5:5}{Var ligger valideringen}
+\ans{a} Att ett fel fångas tidigare och närmare den som orsakade det.
+\ans{b} Att regeln nu finns på två ställen, och att båda måste hållas i synk.
+\ans{c} Bara det ena stället ändras. Den glömda kopian avvisar då frames som är giltiga, eller
+släpper igenom frames som inte är det --- och felet ser ut att komma från hårdvaran.
+
+Regeln uttrycks en gång, i \code{isValid()}, och används på ett ställe: i \code{Spi::send()}.

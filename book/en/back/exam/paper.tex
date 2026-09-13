@@ -1,0 +1,125 @@
+\chapter{Practice test}
+\label{ch:ovningsdugga}
+
+\noindent 25 marks in total. \textbf{Pass:} at least 12 marks, with at least 4 in each part.
+\textbf{Distinction:} at least 19 marks.
+
+\bigskip
+\noindent Answer briefly and clearly. Show the calculations where you calculate.
+
+\section*{Part A --- your own protocol (12 marks)}
+
+The checksum is a 16-bit sum of \textbf{every byte up to the CHK field}. Fields larger than one
+byte (SOF, SEQ, CHK) are sent big-endian.
+
+\begin{console}
+SOF (2) | LEN (1) | TYPE (1) | DST (1) | SRC (1) | SEQ (2) | DATA (N) | CHK (2)
+\end{console}
+
+\noindent \code{SOF = 0xA5F7}. Frame types: \code{Ping = 0x00}, \code{Pong = 0x01},
+\code{StatusRequest = 0x02}, \code{StatusResponse = 0x03}, \code{Ack = 0x04}, \code{Nack = 0x05}.
+
+\exercise{Build two frames}{4 marks}
+\label{ex:d:1}
+\begin{enumerate}[a)]
+  \item A node with address \code{0x17} sends a \code{StatusRequest} to a sensor with address
+    \code{0x25}. The sequence number is \code{0x7F05}. Write out the whole frame byte by byte.
+    (2 marks)
+  \item The sensor answers with a \code{StatusResponse} containing the temperature \code{0x16}
+    (one byte). Write out that frame. (2 marks)
+\end{enumerate}
+
+\exercise{The frame parser}{2 marks}
+\label{ex:d:2}
+\begin{enumerate}[a)]
+  \item Describe briefly what the parser does in \code{WaitForSof1} and in \code{WaitForSof2}.
+    (1 mark)
+  \item The parser is in \code{WaitForSof2} and receives a byte that is not \code{0xF7}. What
+    should it do? There is one answer that is almost right and one that is right --- justify which
+    is which. (1 mark)
+\end{enumerate}
+
+\exercise{Bus and routing}{2 marks}
+\label{ex:d:3}
+\begin{enumerate}[a)]
+  \item Does the routing happen in the bus or in the node? Justify your answer. (1 mark)
+  \item A node receives a frame with a correct checksum, but \code{DST} is not the node's address.
+    What should the node do, and why should it \emph{not} send a \code{Nack}? (1 mark)
+\end{enumerate}
+
+\exercise{Reliability}{2 marks}
+\label{ex:d:4}
+\begin{enumerate}[a)]
+  \item Node A sends a \code{StatusRequest} and gets no \code{Ack}. Describe the flow with timeout
+    and retransmission. Should \code{SEQ} be the same or a new one, and why? (1 mark)
+  \item The \code{Ack} frame is lost on its way back, so A retransmits. B receives the same frame
+    a second time. What should B do, and what should B \emph{not} do? (1 mark)
+\end{enumerate}
+
+\exercise{Byte stream and error model}{2 marks}
+\label{ex:d:5}
+A node receives:
+\begin{console}
+32 74 00 FF A5 F7 03 03 25 17 7F 05 10 20 30 02 C2
+\end{console}
+\begin{enumerate}[a)]
+  \item At which index does the frame begin, and what should the parser do with the data before
+    it? (1 mark)
+  \item Assume instead that the byte \code{0x20} is dropped. What happens to the interpretation,
+    and which state does the parser end up in? (1 mark)
+\end{enumerate}
+
+\section*{Part B --- CAN and the driver (13 marks)}
+
+\exercise{The CAN bus}{3 marks}
+\label{ex:d:6}
+\begin{enumerate}[a)]
+  \item What is a CAN ID, and which \textbf{two} roles does it have at the same time? (1 mark)
+  \item Two nodes start transmitting at the same time. Node A has \code{0x100}, node B has
+    \code{0x0FF}. Which one wins, what does the loser do, and why is no bus master needed?
+    (1 mark)
+  \item List \textbf{three} mechanisms from part A that you did not have to implement in software,
+    and say where in the system they are performed instead. (1 mark)
+\end{enumerate}
+
+\exercise{The register map}{4 marks}
+\label{ex:d:7}
+\begin{enumerate}[a)]
+  \item You are to send a frame with \code{id = 0x2A7}, \code{dlc = 5} and the data bytes
+    \code{01 02 03 04 05}. Write out the five register values to be written, in the right order.
+    Why does the order matter? (2 marks)
+  \item You read \code{RX_ID = 0x00000481}, \code{RX_DLC = 0x00000003},
+    \code{RX_DATA_LO = 0xDEADBE00}, \code{RX_DATA_HI = 0x00000000}. Which identifier did the frame
+    come from, which data bytes does it contain, and what are \code{frame.data[3]} to
+    \code{frame.data[7]} to contain after \code{receive()}? (1 mark)
+  \item Which register has to be written before the next frame can be received, and with which
+    value? What happens if the driver forgets it? (1 mark)
+\end{enumerate}
+
+\exercise{The SPI transaction}{3 marks}
+\label{ex:d:8}
+The following bytes go out on \code{MOSI}. For each one: read or write, which register, and which
+value? (2 marks)
+\begin{console}
+a)  81 00 00 07 FF
+b)  85 00 00 00 01
+c)  8B 00 00 00 00
+d)  C2 00 00 00 03
+\end{console}
+\begin{enumerate}[e)]
+  \item Write out the complete five-byte transaction for \textbf{reading} \code{RX_DLC}. (1 mark)
+\end{enumerate}
+
+\exercise{Sticky bits and limitations}{3 marks}
+\label{ex:d:9}
+\begin{enumerate}[a)]
+  \item The controller signals with pulses one clock cycle long, 20~ns at 50~MHz. An SPI
+    transaction takes around 40~µs. Explain why the register bank is needed, and why \code{STATUS}
+    bit 0 has to be cleared by a \emph{write} instead of automatically on a read. (1 mark)
+  \item Your node transmits a frame and loses the arbitration. \code{STATUS} bit 0 comes back
+    exactly as on a successful transmission. What should the driver do to find out how it went,
+    and what can it still \emph{not} find out? (1 mark)
+  \item \code{clearError()} writes \code{0x0} to \code{ERROR_FLAGS}, while \code{receive()} writes
+    \code{0x1} to \code{RX_ACK}. A student thinks that is inconsistent and writes \code{0x1} in
+    both. What is the symptom, and when is it discovered? (1 mark)
+\end{enumerate}

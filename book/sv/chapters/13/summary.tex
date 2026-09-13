@@ -1,0 +1,15 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item \code{VDDIO2} och gemensam jord först. Utan dem ser en korrekt SPI-implementation ut som
+    en trasig.
+  \item FPGA-nodens enledarbuss blir en riktig differentiell CAN-buss genom en transceiver, vars
+    sändaringång ska vara \textbf{låg för dominant}. Terminera med 120~\textohm{} i vardera änden.
+  \item Klättra stegen i ordning, och ha \textbf{aldrig mer än en okänd sak åt gången}.
+  \item Steg 1 (loopback) är transportens enda test --- den klassen täcks inte av något automattest.
+  \item Steg 2 (maskeringen till elva bitar) bevisar att du pratar med registerbanken och inte med
+    ett eko av din egen ledning.
+  \item Felsök med hypotes och mätning, inte med sladdbyten. Misstänk din egen halva först, bevisa
+    innan du rapporterar, ändra en sak i taget.
+\end{itemize}

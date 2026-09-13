@@ -1,0 +1,71 @@
+% Smutstitel, titelsida och kolofon.
+%
+% \bookversion är den release PDF:en byggdes för: `make VERSION=v2` skickar in den, och
+% release-workflowet skickar in taggen. Utan den bär titelsidan bara byggdatumet.
+\providecommand{\bookversion}{}
+\newcommand{\bookdate}{\number\day\space\ifcase\month\or januari\or februari\or mars\or april\or
+  maj\or juni\or juli\or augusti\or september\or oktober\or november\or december\fi\space
+  \number\year}
+\newcommand{\bookedition}{\ifx\bookversion\empty\else\bookversion\,·\,\fi\bookdate}
+
+\thispagestyle{empty}
+\vspace*{2.2in}
+\begin{flushright}
+  {\Large\bfseries Kommunikationsprotokoll och drivrutiner}
+\end{flushright}
+\cleardoublepage
+
+\thispagestyle{empty}
+\vspace*{1.1in}
+\begin{flushleft}
+  {\color{accent}\rule{0.9in}{2.5pt}}\par\vspace{1.4ex}
+  {\fontsize{30}{36}\selectfont\bfseries Kommunikations-\\[0.15ex] protokoll och\\[0.15ex]
+   drivrutiner\par}
+  \vspace{2.2ex}
+  {\Large\itshape Från eget protokoll till en testad\\CAN-drivrutin i C++\par}
+  \vspace{1.0in}
+  {\large Erik Pihl\par}
+  \vfill
+  {\small\color{muted} \bookedition\par}
+\end{flushleft}
+\newpage
+
+\thispagestyle{empty}
+\vspace*{\fill}
+{\small
+\noindent\textit{Kommunikationsprotokoll och drivrutiner}\\
+Kursbok. Ett kapitel per föreläsning.
+
+\medskip
+\noindent Boken tar dig från ett självpåhittat protokoll, där varje mekanism skrivs för hand, till
+en drivrutin mot en CAN-kontroller i ett FPGA som en parallellklass konstruerar samtidigt. Den
+sista tredjedelen kopplar ihop de två halvorna på riktig hårdvara.
+
+\medskip
+\noindent Brödtexten är på svenska. All kod, alla kommentarer i koden, alla register- och
+signalnamn är på engelska --- precis som i kursens övriga material och i koden du skriver.
+
+\medskip
+\noindent Text och figurer: Erik Pihl.
+
+\medskip
+\noindent Bokens text och figurer, liksom kursmaterialet den är satt från, är licensierade under
+Creative Commons Erkännande 4.0 Internationell (CC BY 4.0). Du får kopiera, sprida och bearbeta
+materialet i vilket syfte som helst, även kommersiellt, förutsatt att du anger upphovsperson och
+licens. Licensen finns på \url{https://creativecommons.org/licenses/by/4.0/deed.sv}.
+\medskip
+\noindent Koden i bokens listningar får även användas under MIT-licensen, som är licensen för all
+kod i kursens repository. Där finns också lektionsmaterialet och lösningsförslagen till övningarna.
+
+\medskip
+\noindent Koden är C++17. Drivrutinen håller sig till en delmängd som går att kompilera
+friställt för en AVR32DB28, alltså utan heap, undantag och RTTI. AVR, AVR-Dx, Cyclone V och
+DE0-CV är varumärken som tillhör sina respektive ägare.
+
+\medskip
+\noindent Satt med Lua\LaTeX\ i TeX Gyre Pagella och DejaVu Sans Mono.
+
+\medskip
+\noindent\textcolor{muted}{Den här utgåvan: \bookedition.}
+\par}
+\cleardoublepage

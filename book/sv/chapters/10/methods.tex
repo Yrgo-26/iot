@@ -1,0 +1,221 @@
+\section{\texorpdfstring{\code{send()}}{send()}}
+\label{sec:send}
+
+\begin{cppcode}
+bool Spi::send(const Frame& frame)
+{
+    if (!isValid(frame))                              { return false; }
+    if ((readReg(RegStatus) & StatusTxReady) == 0U)   { return false; }
+
+    writeReg(RegTxId,      frame.id);
+    writeReg(RegTxDlc,     frame.dlc);
+    writeReg(RegTxDataLo,  packDataLo(frame));
+    writeReg(RegTxDataHi,  packDataHi(frame));
+    writeReg(RegTxSend,    Trigger);
+
+    return true;
+}
+\end{cppcode}
+
+\subsection{Ordningen är inte godtycklig}
+
+\code{TX_SEND} \textbf{måste} skrivas sist. Den skrivningen betyder inte "spara ett värde" utan
+"börja sända nu", och kontrollern läser då \code{TX_ID}, \code{TX_DLC} och de två dataregistren.
+Skriv triggern först och du skickar förra framens innehåll --- vilket vid bring-upen ser ut som en
+nod som ligger exakt en frame efter.
+
+Statuskontrollen måste komma \textbf{före} skrivningarna. Skulle du skriva \code{TX_ID} medan en
+sändning pågår skriver du över data kontrollern håller på att använda.
+
+\subsection{Två \texorpdfstring{\code{false}}{false}, två betydelser}
+
+Interfacet har bara en \code{bool} att uttrycka båda med:
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{Orsak} & \thead{Vad anroparen bör göra} \\ \midrule
+Ogiltig frame & Rätta framen. Väntan hjälper aldrig. \\
+Hårdvaran upptagen & Vänta och försök igen. \\
+\end{narrowtable}
+
+Det är en medveten förenkling, men värd att vara medveten om. Två saker följer:
+
+\textbf{Ordningen spelar roll.} Valideringen först, så att en ogiltig frame avvisas \emph{utan} att
+en enda transaktion går ut på bussen. Den utdelade testsviten kontrollerar just det.
+
+\textbf{Det blir ett problem exakt en söm högre upp.} Den här loopen är en oändlig loop för en
+frame med \code{dlc = 9}:
+
+\begin{cppcode}
+while (!driver.send(frame))   // hänger för alltid om framen är ogiltig
+{
+}
+\end{cppcode}
+
+Rätt hantering är att validera innan man går in i loopen, eller att räkna försök och ge upp.
+
+\section{Packningen}
+\label{sec:packing}
+
+Databyte 0 ligger i de \textbf{mest signifikanta} bitarna, och \code{TX_DATA_LO} bär de
+\textbf{första} fyra bytesen.
+
+\begin{cppcode}
+/**
+ * @brief Pack four payload bytes into one register word, byte 0 in the most significant bits.
+ */
+[[nodiscard]] std::uint32_t pack(const std::uint8_t* const data,
+                                 const std::uint8_t offset) noexcept
+{
+    return (static_cast<std::uint32_t>(data[offset + 0U]) << 24U)
+         | (static_cast<std::uint32_t>(data[offset + 1U]) << 16U)
+         | (static_cast<std::uint32_t>(data[offset + 2U]) << 8U)
+         | (static_cast<std::uint32_t>(data[offset + 3U]));
+}
+\end{cppcode}
+
+Samma cast-regel som i \kapref{ch:byte}: \textbf{casta före skiftningen}.
+
+De två vanligaste packningsfelen:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Fel} & \thead{Symptom} \\ \midrule
+\code{TX_DATA_LO} och \code{TX_DATA_HI} förväxlade & Framen kommer fram med byte 4--7 först.
+  Syns direkt i en bussanalysator, och inte alls i simulering om testet också har fel. \\
+Skiftningarna i omvänd ordning & \code{AA BB CC DD} kommer fram som \code{DD CC BB AA}. \\
+\end{booktable}
+
+Båda ger en frame som \emph{kommer fram} --- bara med fel innehåll. Det är den obehagligaste
+sortens fel, för allt \emph{ser} ut att fungera.
+
+\section{\texorpdfstring{\code{receive()}}{receive()}}
+\label{sec:receive}
+
+\begin{cppcode}
+bool Spi::receive(Frame& frame)
+{
+    if ((readReg(RegStatus) & StatusRxValid) == 0U) { return false; }
+
+    frame.id  = static_cast<std::uint16_t>(readReg(RegRxId) & 0x7FFU);
+    frame.dlc = static_cast<std::uint8_t>(readReg(RegRxDlc) & 0xFU);
+
+    unpack(readReg(RegRxDataLo), frame.data, 0U);
+    unpack(readReg(RegRxDataHi), frame.data, 4U);
+
+    for (std::uint8_t i{frame.dlc}; i < Frame::MaxDataLen; ++i)
+    {
+        frame.data[i] = 0U;
+    }
+
+    writeReg(RegRxAck, Trigger);
+    return true;
+}
+\end{cppcode}
+
+\subsection{Maskeringen mot \texorpdfstring{\code{dlc}}{dlc}}
+
+Loopen ser överflödig ut. Registerkartan säger ju att kontrollern nollställer sin dataackumulator
+vid varje framestart, så de bytesen \emph{är} redan noll.
+
+Gör det ändå, av tre skäl:
+
+\begin{enumerate}
+  \item \textbf{Nollorna är kontrollerns garanti, inte framens innehåll.} En drivrutin som
+    kopierar åtta bytes rakt av rapporterar upp till sex bytes som aldrig sändes. Att de råkar
+    vara noll gör dem inte till data.
+  \item \textbf{Garantin kan försvinna.} Den kommer från en implementationsdetalj i hårdvarans
+    VHDL. Ändras den, eller lånar du ett kort från en annan grupp, är din drivrutin fortfarande
+    rätt.
+  \item \textbf{\code{dlc} är kontraktet.} \code{frame.dlc = 2} betyder "två bytes gäller". Kod
+    som lämnar ifrån sig ett objekt vars fält säger emot varandra gör nästa läsare osäker.
+\end{enumerate}
+
+\subsection{\texorpdfstring{\code{RX_ACK}}{RX\_ACK} sist}
+
+Kvittensen frigör \code{RX_*}-registren och nollställer \code{STATUS} bit 1. Skriv den
+\textbf{efter} att du läst allt --- annars kan nästa frame skriva över registren mitt i din
+läsning.
+
+Glöm den helt, och bit 1 står kvar för alltid: varje \code{receive()} returnerar \code{true} med
+samma frame, i en oändlig loop. Det är ett symptom värt att känna igen.
+
+\section{\texorpdfstring{\code{hasError()}}{hasError()} och \texorpdfstring{\code{clearError()}}{clearError()}}
+\label{sec:errors}
+
+\begin{cppcode}
+bool Spi::hasError() const noexcept
+{
+    return (readReg(RegStatus) & StatusError) != 0U;
+}
+
+void Spi::clearError() noexcept
+{
+    writeReg(RegErrorFlags, 0U);
+}
+\end{cppcode}
+
+Två rader, och en av dem är en fälla.
+
+\textbf{\code{clearError()} skriver \code{0x0}, inte \code{0x1}.} \code{ERROR_FLAGS} är en
+lås-och-nollställ-på-noll-konstruktion: bara en skrivning där hela ordet är noll nollställer
+låsningen. \code{0x1} gör ingenting, och \code{0x000000FF} gör ingenting trots att bit 0 är satt.
+
+Det är motsatt regel mot \code{TX_SEND} och \code{RX_ACK}, som kräver att bit 0 \emph{är} satt.
+Att de tre registren har olika regler är inte elegant, men det står i kartan, och det är kartan
+som gäller.
+
+\textbf{Symptomet om du skriver \code{0x1}:} felbiten går aldrig ned, \code{hasError()} returnerar
+\code{true} för alltid efter första felet, och all felhantering ovanför slutar fungera.
+
+\section{Att vänta på en sändning}
+\label{sec:waiting}
+
+\code{send()} \textbf{väntar inte}. Den returnerar så fort triggern är skriven, och det är rätt: en
+drivrutinsmetod som blockerar i upp till 130~µs på en 4~MHz-MCU äter hela systemets tidsbudget.
+
+Hur väntar anroparen då? Interfacet har varken \code{txReady()} eller \code{waitForSend()} ---
+avsiktligt, eftersom \code{Stub} inte kunnat implementera dem meningsfullt. Det anroparen har är
+att \code{send()} returnerar \code{false} medan sändaren är upptagen. \textbf{Väntan är alltså ett
+nytt försök:}
+
+\begin{cppcode}
+driver.clearError();
+
+if (!isValid(frame)) { return false; }   // never going to be accepted, however long we wait
+
+std::uint16_t attempts{};
+while (!driver.send(frame))
+{
+    if (++attempts >= MaxAttempts) { return false; }
+}
+
+// The port was free when the frame was accepted, so the previous transmission had finished.
+if (driver.hasError())
+{
+    driver.clearError();
+    // Lost arbitration, stuff error, bad CRC or a remote frame - the latch does not say which.
+}
+\end{cppcode}
+
+\begin{limitation}
+\textbf{En förlorad arbitrering ser ut som en lyckad sändning.} \code{STATUS} bit 0 kommer tillbaka
+i båda fallen, och betyder \emph{porten är fri}, inte \emph{framen kom fram}. Vill du veta
+utfallet måste du läsa \code{ERROR_FLAGS} \emph{efter} att biten kommit tillbaka --- och även då
+får du veta \emph{att} något gick fel, aldrig \emph{vad}.
+\end{limitation}
+
+\section{Checklista}
+\label{sec:checklist}
+
+\begin{itemize}
+  \item[\checkbox] \code{send()} validerar \textbf{först}, och skickar ingen transaktion för en
+    ogiltig frame.
+  \item[\checkbox] \code{send()} kontrollerar \code{StatusTxReady} innan den skriver något.
+  \item[\checkbox] \code{TX_SEND} skrivs \textbf{sist}.
+  \item[\checkbox] \code{TX_DATA_LO} bär databyte 0--3, med byte 0 i bitarna 31--24.
+  \item[\checkbox] Varje \code{static_cast<std::uint32_t>} står \textbf{före} skiftningen.
+  \item[\checkbox] \code{receive()} kontrollerar \code{StatusRxValid} först.
+  \item[\checkbox] \code{receive()} skriver \code{RX_ACK} \textbf{efter} alla läsningar.
+  \item[\checkbox] \code{receive()} nollställer \code{frame.data} ovanför \code{frame.dlc}.
+  \item[\checkbox] \code{clearError()} skriver \code{0x0}.
+  \item[\checkbox] Ingen magisk siffra i hela filen.
+\end{itemize}

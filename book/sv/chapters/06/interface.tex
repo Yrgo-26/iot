@@ -1,0 +1,119 @@
+\section{Interfacet}
+\label{sec:interface}
+
+\begin{cppcode}
+namespace driver::can
+{
+struct Frame;
+
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+
+    [[nodiscard]] virtual bool send(const Frame& frame)      = 0;
+    [[nodiscard]] virtual bool receive(Frame& frame)         = 0;
+    [[nodiscard]] virtual bool hasError() const noexcept     = 0;
+    virtual void clearError() noexcept                       = 0;
+};
+} // namespace driver::can
+\end{cppcode}
+
+Varje del av den, en i taget:
+
+\textbf{Virtuell destruktor.} Objekt kommer att raderas genom en \code{Interface*}. Utan
+\code{virtual} anropas bara basklassens destruktor, och en \code{Spi} som håller resurser läcker
+dem --- odefinierat beteende, och en av de få buggarna i den här designen som inget test fångar.
+\code{= default} därför att det inte finns något att göra; \code{noexcept} därför att destruktorer
+aldrig ska kasta.
+
+\textbf{\code{= 0} på alla fyra.} Klassen är ren abstrakt: den går inte att instansiera och har
+ingen implementation att ärva av misstag. Den är ett kontrakt och ingenting annat.
+
+\textbf{\code{[[nodiscard]]} på tre av fyra.} \code{send()} returnerar \code{false} när hårdvaran
+är upptagen. En anropare som ignorerar det tror att framen gick iväg --- den vanligaste
+drivrutinsbuggen som finns, här förvandlad till en kompilatorvarning.
+
+\textbf{\code{const} på \code{hasError()}.} Att fråga om ett fel ändrar inte drivrutinen, och
+metoden går därmed att anropa på en \code{const Interface&}.
+
+\textbf{\code{noexcept} på de två felmetoderna.} De anropas från felhanteringsvägar, och en
+felhanteringsväg som själv kan kasta är svår att resonera om. De gör dessutom ingenting som
+\emph{kan} misslyckas.
+
+\subsection{Vad som inte finns här}
+
+Ingen \code{init()}. Ingen \code{setBaudRate()}. Ingen \code{readRegister()}.
+
+\textbf{Testet är: kan både \code{Stub} och \code{Spi} implementera metoden meningsfullt?}
+\code{readRegister()} kan de inte --- stubben har inga register. En sådan metod hade tvingat
+stubben att ljuga, och tvingat applikationen att veta att register finns.
+
+\section{Stubben}
+\label{sec:stub}
+
+\code{Stub} är \code{final}, ärver \code{Interface}, och simulerar CAN i minnet:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Metod} & \thead{Kontrakt} \\ \midrule
+Konstruktorn & \code{myLastFrame} tom, \code{myInitialized = true}, \code{myHasData = false}. \\
+\code{send()} & \code{false} om oinitialiserad. Annars: lagra framen, sätt \code{myHasData},
+  returnera \code{true}. \\
+\code{receive()} & \code{false} om oinitialiserad eller utan data. Annars: kopiera ut framen,
+  nollställ \code{myHasData}, returnera \code{true}. \\
+\code{hasError()} & Alltid \code{false}. \\
+\code{clearError()} & Gör ingenting. \\
+\code{inject()} & Lagrar en frame för senare \code{receive()}. \\
+\end{booktable}
+
+Kopierings- och flyttoperationerna tas bort i den publika delen. En \code{Stub} representerar en
+(simulerad) hårdvaruresurs, och två kopior av samma resurs är inte två resurser.
+
+\subsection{Varför \texorpdfstring{\code{inject()}}{inject()} inte ligger i interfacet}
+
+Den finns bara för testernas skull: den simulerar att en frame kommit in på bussen. En \code{Spi}
+kan inte implementera den --- den kan inte trolla fram trafik som inte finns.
+
+Konsekvensen är mönstret som återkommer genom hela boken:
+
+\begin{cppcode}
+driver::can::Stub stub{};            // konkret typ: har inject()
+app::EchoNode node{stub, 0x200U};    // tar en Interface&: har den inte
+stub.inject(frame);                  // testet talar med stubben direkt
+node.run();                          // komponenten vet ingenting om det
+\end{cppcode}
+
+Testet håller i den \textbf{konkreta} typen, komponenten ser bara \textbf{interfacet}.
+
+\subsection{Vad stubben inte simulerar}
+
+Inte fel. Inte upptagen hårdvara. Ingen kö --- en andra \code{send()} skriver över den första.
+Ingen arbitrering, ingen CRC.
+
+Det är avsiktligt. Stubbens jobb är att låta \code{EchoNode} köras, inte att vara en
+CAN-simulator.
+
+\begin{aside}
+\note Att veta var gränsen för en testdubblares realism går är en färdighet i sig. \textbf{En
+stubb som växer tills den är en andra implementation av hårdvaran är en stubb som själv behöver
+testas.} Den som vill testa hur drivrutinen beter sig när hårdvaran är upptagen behöver en annan
+dubblare, en söm längre ned --- och den kommer i \kapref{ch:testning}.
+\end{aside}
+
+\subsection{Stubb, inte mock}
+
+En \textbf{stubb} svarar på anrop med förprogrammerade svar; testet kontrollerar vad den anropande
+koden gjorde med svaren. En \textbf{mock} kontrollerar dessutom att den blev anropad rätt --- rätt
+metod, rätt argument, rätt antal gånger.
+
+\code{Stub} är en stubb. \code{ScriptedTransport} i \kapref{ch:testning} ligger närmare en mock.
+
+\subsection{Sömmen har redan lönat sig}
+
+Argumentet för ett interface brukar vara hypotetiskt. Här är det inte det: en tidigare version av
+konstruktionen nådde registren via \textbf{minnesmappad I/O} på \code{0xFF200000}, vilket
+förutsätter en adressbuss ut mot FPGA-väven som mikrokontrollern inte har.
+
+Allt ovanför \code{Interface} överlevde bytet till SPI \textbf{oförändrat}. Den gamla varianten
+hade \code{Fpga} och \code{volatile}-pekare där vi har \code{Spi} och \code{ByteTransport}. Ingen
+av dem är fel; det är två implementationer under samma söm.

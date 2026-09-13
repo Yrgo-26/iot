@@ -1,0 +1,16 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item SPI är \textbf{full duplex}: varje klockpuls skiftar en bit åt vardera hållet. En läsning
+    måste därför skicka dummybytes.
+  \item Varje transaktion är \textbf{exakt fem bytes}: kommandobyte plus fyra databytes, MSB
+    först, med \code{SS} låg hela vägen.
+  \item Vid läsning \textbf{låses} registervärdet en gång, i slutet av kommandobyten. De fyra
+    byten hör alltid till ett sammanhängande prov.
+  \item Byten som klockas in under kommandobyten är skräp. Kasta den.
+  \item \code{SS} måste gå hög mellan transaktioner. Två transaktioner under en låg period
+    misslyckas \emph{tyst}.
+  \item En transaktion kostar 40--50~µs. En \code{send()} är sex av dem, alltså längre tid än den
+    CAN-frame den skickar.
+\end{itemize}

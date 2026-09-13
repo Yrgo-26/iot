@@ -1,0 +1,17 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item \code{Frame} is an \textbf{aggregate}: no constructor, no destructor, no methods. That
+    keeps aggregate initialisation readable and makes the class pure data.
+  \item \code{MaxDataLen} is \code{static constexpr} --- a type, a scope, visible in the debugger,
+    and the same number as the size of the array.
+  \item \code{isValid()} is a free function, and the rule is expressed \textbf{once}. The hardware
+    validates nothing, so the driver has to --- and only it.
+  \item You write no tests in the course. You run them, read them and get them to pass.
+  \item Testing decides the course because the hardware neither exists nor is yours until second
+    to last.
+  \item Read a failing test case in the order test name $\rightarrow$ Arrange $\rightarrow$
+    Assert, and open your own code last.
+  \item The test suite is more often a more precise requirements specification than the prose.
+\end{itemize}

@@ -1,0 +1,52 @@
+\section*{Chapter 13 --- Bring-up}
+\addcontentsline{toc}{section}{Chapter 13 --- Bring-up}
+
+\solution{ex:13:1}{The ladder}
+\ans{a} Rung 1 proves that \emph{your} SPI master works: the clock, the bit order, the timing and
+the configuration. The FPGA is not connected and cannot affect the outcome. Rung 2 proves that the
+whole chain works --- the wiring, the slave's synchronisation, the transaction bridge and the
+register bank --- and that both sides interpret the command byte the same way.
+\ans{b} Because a loopback also gives back what you wrote. If you write \code{0x00000123} and read
+\code{0x00000123}, that may just as well be your own \code{MOSI} coming back on \code{MISO}
+through a miswiring. \textbf{The masking is the proof:} write \code{0xFFFFFFFF} to \code{TX_ID}
+and read back \code{0x000007FF}. An echo cannot mask away the upper bits; only a register bank
+can.
+\ans{c} Rung 1. \code{AvrSpiTransport} is the only class in the project that no automated test
+covers, since it talks to a physical register --- it cannot be run on the host computer, and a
+test double of it would have tested the double.
+
+\solution{ex:13:2}{From symptom to hypothesis}
+\ans{a} For example: \code{MISO} not connected or connected to the wrong pin; the pin mux not set,
+so the peripheral sits on the wrong port; \code{VDDIO2} not powered, so \code{PORTC} does not
+work; the FPGA not programmed; the clock too fast; \code{SS} not released between transactions; or
+a missing common ground.
+\ans{b} Fastest first: \code{VDDIO2} (read the MVIO status in the program --- no measurement at
+all), the pin mux (read the code), the FPGA being programmed (look at the board), then the
+measurements: clock pulses on \code{SCK}, the \code{SS} behaviour, and last the wiring, wire by
+wire.
+\ans{c} A loopback: connect \code{MOSI} straight to \code{MISO} and run rung 1 again. If you get
+back what you sent, your master works and the fault is in the wiring to the FPGA or in the FPGA.
+If you do not, the fault is on your side, and the FPGA is ruled out.
+
+\solution{ex:13:3}{Whose fault?}
+\ans{a} It cannot be decided from the symptom alone --- all three are possible, which is the whole
+difficulty of debugging a system two groups built one half each of.
+\ans{b} Climb down the ladder until something gives the right receipt. If rungs 2 and 3 give the
+right answers the SPI chain works, so the fault is on the CAN side: the wiring to the transceiver,
+the termination, or the controller. If rung 3 gives \code{0x00000001} but \code{STATUS} bit 0
+never goes low after a \code{TX_SEND} write, the trigger is not reaching the controller --- which
+points at the register bank, or at your write not having bit 0 set.
+\ans{c} It should contain what you did, what you observed and what you have already ruled out. For
+example: \emph{"Rung 2 gives the right masking for \code{TX_ID} (\code{0xFFFFFFFF} reads back as
+\code{0x000007FF}), so the SPI chain and the register bank work. \code{STATUS} reads as
+\code{0x00000001}. After a write of \code{0x1} to \code{TX_SEND}, bit 0 never goes low, and
+nothing shows on \code{tx_bus}. We have verified that our command byte is \code{0x85} and that bit
+0 is set in the data."} That is a report somebody can act on; "it does not work" is not.
+
+\solution{ex:13:4}{The termination}
+\ans{a} About 60~\textohm: two 120-ohm resistors in parallel, one at each end.
+\ans{b} There are three resistors instead of two --- three 120~\textohm{} in parallel give
+40~\textohm. Most likely a node in the middle of the bus has its termination switched on.
+\ans{c} There is only one resistor; the other is missing or not connected. It shows when the cable
+gets longer, the speed higher or the environment noisier --- that is, typically when the design is
+moved off the lab bench, which is the worst possible moment.

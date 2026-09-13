@@ -1,0 +1,65 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Se optimeraren arbeta}{Kod}
+\label{ex:12:1}
+På värddatorn, innan du skriver någon hårdvarukod:
+\begin{cppcode}
+int flag{};
+
+void wait()
+{
+    while (flag == 0)
+    {
+    }
+}
+\end{cppcode}
+\begin{enumerate}[a)]
+  \item Kompilera med \code{-O2 -S} och titta på assemblern. Vad blev loopen?
+  \item Lägg till \code{volatile} på \code{flag} och gör om. Vad ändrades?
+  \item Förklara i två meningar varför skillnaden spelar roll för statusflaggan i
+    \code{transfer()}.
+\end{enumerate}
+
+\exercise{Förutsäg, ändra, observera}{Kod}
+\label{ex:12:2}
+Gör en ändring i taget och notera symptomet. Återställ efter varje.
+\begin{enumerate}[a)]
+  \item Ta bort pinnmux-raden.
+  \item Ta bort slave-select-disable ur lägesregistret.
+  \item Sätt prescalern så att klockan blir dubbelt så snabb.
+  \item Ta bort läsningen av dataregistret i \code{transfer()}.
+  \item Glöm att sätta klockpinnen som utgång.
+\end{enumerate}
+Rad d) är den lömskaste: det \emph{ser} ut att fungera. Vad blir egentligen fel, och när märks det?
+
+\exercise{Arkitekturtestet}{Kod}
+\label{ex:12:3}
+Byt transport och drivrutin mot en \code{Stub} i factoryn och kompilera för värddatorn.
+\begin{enumerate}[a)]
+  \item Gick det?
+  \item Om inte: vilken fil klagade kompilatorn på, och vilken lagergräns hade brutits?
+  \item Kör programmet. Vad gör \code{EchoNode} mot en \code{Stub}?
+\end{enumerate}
+
+\exercise{Friställt}{Kod}
+\label{ex:12:4}
+Bygg firmware med \code{-fno-exceptions -fno-rtti}.
+\begin{enumerate}[a)]
+  \item Kompilerar allt?
+  \item Sök igenom hela projektet efter \code{new}, \code{std::vector}, \code{std::string} och
+    \code{dynamic_cast}. Hittar du något?
+  \item Varför behövde designen inte ändras för det friställda målet?
+\end{enumerate}
+
+\exercise{Konstruktionsordningen}{Resonemang}
+\label{ex:12:5}
+Byt plats på factoryns två medlemsdeklarationer.
+\begin{enumerate}[a)]
+  \item Kompilerar det? Varnar kompilatorn?
+  \item Vad händer vid körning, och varför?
+  \item Vilken allmän regel om medlemsordning följer av det?
+\end{enumerate}

@@ -1,0 +1,58 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Papper och penna. Lösningarna står i \hyperref[ch:losningar]{appendix~A}.
+
+\exercise{Avkoda}{Avkodning}
+\label{ex:8:1}
+Följande bytes går ut på \code{MOSI}. För var och en: läsning eller skrivning, vilket register,
+och vilket värde?
+\begin{console}
+a)  81 00 00 07 FF
+b)  85 00 00 00 01
+c)  8B 00 00 00 00
+d)  C2 00 00 00 03
+\end{console}
+Två av dem är ovanliga på var sitt sätt. Vilka, och varför?
+
+\exercise{Koda}{Räkning}
+\label{ex:8:2}
+Skriv upp den kompletta femBytestransaktionen för var och en:
+\begin{enumerate}[a)]
+  \item Läs \code{RX_DLC}.
+  \item Skriv \code{TX_DLC = 4}.
+  \item Trigga en sändning.
+  \item Kvittera en mottagen frame.
+  \item Nollställ felregistret.
+\end{enumerate}
+Notera särskilt skillnaden mellan d) och e).
+
+\exercise{Vad kommer tillbaka}{Resonemang}
+\label{ex:8:3}
+\begin{enumerate}[a)]
+  \item Under en skrivning klockar mastern in fem bytes på \code{MISO}. Hur många betyder något?
+  \item Under en läsning av \code{STATUS}, hur många av de fem betyder något, och vilka?
+  \item En drivrutin sätter ihop returvärdet av \emph{alla fem} mottagna byten i stället för de
+    fyra sista. Vad händer, och hur skulle det se ut i felsökningen?
+\end{enumerate}
+
+\exercise{\texorpdfstring{\code{SS}}{SS} och avbrott}{Resonemang}
+\label{ex:8:4}
+Vad händer i vart och ett av fallen?
+\begin{enumerate}[a)]
+  \item \code{SS} går hög efter tre av fem bytes i en skrivning till \code{TX_ID}.
+  \item Mastern håller \code{SS} låg och skickar tio bytes i sträck:
+    \code{81 00 00 01 23 82 00 00 00 02}.
+  \item Mastern skickar kommandobyten \code{0x91}.
+\end{enumerate}
+Fall b) är det farliga. Varför, och hur skulle symptomet se ut vid bring-upen?
+
+\exercise{Tidsbudget}{Räkning}
+\label{ex:8:5}
+Vid 1~MHz \code{SCK}:
+\begin{enumerate}[a)]
+  \item Hur lång tid tar en \code{receive()} som hittar en frame?
+  \item Hur lång tid tar en maximal CAN-frame på bussen vid 1~Mbit/s?
+  \item En annan nod sänder frames så fort den kan. Vad händer med dem som kommer medan din
+    \code{receive()} pågår? Är det din bugg?
+\end{enumerate}

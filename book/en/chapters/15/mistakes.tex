@@ -1,0 +1,49 @@
+\section{The most expensive mistakes}
+\label{sec:mistakes}
+
+Each of them has cost somebody an evening. They are listed in the order they tend to happen.
+
+\begin{booktable}{@{}rLL@{}}
+\thead{\#} & \thead{Mistake} & \thead{Symptom} \\ \midrule
+1 & The parser does not check the length field against the size of the buffer & Buffer overflow;
+  all sorts of other things break \\
+2 & The parser goes back to \code{WaitForSof1} on a second \code{0xA5} & The odd frame is missed,
+  inexplicably \\
+3 & Multi-byte fields are serialised by copying memory & Works until the other side is built with
+  a different endianness \\
+4 & A duplicate is not acknowledged again & The sender retransmits for all eternity \\
+5 & \code{TX_DATA_LO} and \code{TX_DATA_HI} swapped & The frame arrives --- back to front \\
+6 & The cast after the shift in \code{readReg()} & Works for small values, breaks at bit 7 \\
+7 & \code{TX_SEND} written before the data registers & The node runs exactly one frame behind \\
+8 & \code{clearError()} writes \code{0x1} & The error bit never goes low; all error handling stops
+  working \\
+9 & \code{RX_ACK} forgotten & The same frame is read in an endless loop \\
+10 & \code{receive()} does not mask against \code{dlc} & Up to six bytes are reported that were
+  never sent \\
+11 & \code{while (!send(frame)) {}} on an invalid frame & Hangs forever \\
+12 & The pin mux not set & The program runs, the wires are silent, no errors are reported \\
+13 & The data register is not read in \code{transfer()} & All the data is one byte out \\
+14 & \code{VDDIO2} not connected & Looks exactly like a broken SPI implementation \\
+15 & The factory's members in the wrong declaration order & A reference to an object that has not
+  been constructed \\
+\end{booktable}
+
+\begin{aside}
+\note Eleven of the fifteen would have been caught by a test on the laptop. Three of them --- 12,
+13 and 14 --- would not, and those are precisely the three that live in the one class no automated
+test covers. That is no coincidence, and it is the whole argument for the ladder in
+\kapref{ch:bringup}.
+\end{aside}
+
+\section{After the course}
+
+Two things continue directly from here.
+
+\textbf{Testing.} Throughout the project you have run and read tests somebody else wrote. The next
+step is deciding what they should check --- which is a harder problem than it sounds, and the one
+that decides whether a test suite is worth anything.
+
+\textbf{Your own repository.} The driver you have built is a complete, tested, layered driver
+stack against real hardware, developed against a contract and verified without access to the other
+half. That is a reasonable first item in a portfolio, and a more realistic description of embedded
+development than most course projects.

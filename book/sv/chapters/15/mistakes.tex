@@ -1,0 +1,48 @@
+\section{De dyraste misstagen}
+\label{sec:mistakes}
+
+Var och en av dem har kostat någon en kväll. De står i den ordning de brukar inträffa.
+
+\begin{booktable}{@{}rLL@{}}
+\thead{\#} & \thead{Misstag} & \thead{Symptom} \\ \midrule
+1 & Parsern kontrollerar inte längdfältet mot buffertens storlek & Buffertöverskrivning; allt
+  möjligt annat går sönder \\
+2 & Parsern går tillbaka till \code{WaitForSof1} på ett andra \code{0xA5} & Enstaka frames
+  missas, oförklarligt \\
+3 & Flerbytesfält serialiseras genom att kopiera minnet & Fungerar tills den andra sidan byggs
+  med annan endianness \\
+4 & Dubblett kvitteras inte igen & Sändaren skickar om i all evighet \\
+5 & \code{TX_DATA_LO} och \code{TX_DATA_HI} förväxlade & Framen kommer fram --- bakvänd \\
+6 & Cast efter skiftningen i \code{readReg()} & Fungerar för små värden, går sönder vid bit 7 \\
+7 & \code{TX_SEND} skrivs före dataregistren & Noden ligger exakt en frame efter \\
+8 & \code{clearError()} skriver \code{0x1} & Felbiten går aldrig ned; all felhantering slutar
+  fungera \\
+9 & \code{RX_ACK} glöms & Samma frame läses i en oändlig loop \\
+10 & \code{receive()} maskerar inte mot \code{dlc} & Upp till sex bytes rapporteras som aldrig
+  sändes \\
+11 & \code{while (!send(frame)) {}} på en ogiltig frame & Hänger för alltid \\
+12 & Pinnmuxen inte satt & Programmet kör, ledningarna är tysta, inga fel rapporteras \\
+13 & Dataregistret läses inte i \code{transfer()} & All data ligger en byte fel \\
+14 & \code{VDDIO2} inte kopplad & Ser ut precis som en trasig SPI-implementation \\
+15 & Factoryns medlemmar i fel deklarationsordning & Referens till ett objekt som inte
+  konstruerats \\
+\end{booktable}
+
+\begin{aside}
+\note Elva av de femton hade fångats av ett test på laptopen. Tre av dem --- 12, 13 och 14 ---
+hade det inte, och det är precis de tre som bor i den enda klass inget automattest täcker. Det är
+ingen slump, och det är hela argumentet för stegen i \kapref{ch:bringup}.
+\end{aside}
+
+\section{Efter kursen}
+
+Två saker fortsätter direkt härifrån.
+
+\textbf{Testning.} Genom hela projektet har du kört och läst tester som någon annan skrivit. Nästa
+steg är att bestämma vad de ska kontrollera --- vilket är ett svårare problem än det låter, och
+det som avgör om en testsvit är värd något.
+
+\textbf{Ditt eget repo.} Drivrutinen du byggt är en komplett, testad, lagerdelad drivrutinsstack
+mot riktig hårdvara, utvecklad mot ett kontrakt och verifierad utan tillgång till den andra halvan.
+Det är ett rimligt första objekt i en portfölj, och det är en mer realistisk beskrivning av
+inbyggd utveckling än de flesta kursprojekt.

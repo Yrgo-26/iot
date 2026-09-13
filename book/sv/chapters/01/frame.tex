@@ -1,0 +1,120 @@
+\section{Framens fält}
+\label{sec:frame}
+
+Kursens protokoll använder följande struktur. Siffran är fältets längd i bytes:
+
+\begin{console}
+SOF (2) | LEN (1) | TYPE (1) | DST (1) | SRC (1) | SEQ (2) | DATA (N) | CHK (2)
+\end{console}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Fält} & \thead{Bytes} & \thead{Vad det löser} \\ \midrule
+SOF & 2 & \emph{Var börjar meddelandet?} Ett fast mönster, \code{0xA5F7}, som markerar start. \\
+LEN & 1 & \emph{Hur långt är det?} Antalet databytes som följer. \\
+TYPE & 1 & \emph{Vad betyder det?} Meddelandets sort. \\
+DST & 1 & \emph{Till vem?} Mottagarens adress. \\
+SRC & 1 & \emph{Från vem?} Avsändarens adress. \\
+SEQ & 2 & Löpnummer, som gör det möjligt att para ihop svar med fråga och att känna igen en
+  dubblett. \\
+DATA & N & Nyttolasten, \code{LEN} bytes lång. \\
+CHK & 2 & \emph{Kom det fram helt?} Summan av alla föregående bytes. \\
+\end{booktable}
+
+Frametyperna i kursens protokoll:
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{Typ} & \thead{Värde} \\ \midrule
+\code{Ping} & \code{0x00} \\
+\code{Pong} & \code{0x01} \\
+\code{StatusRequest} & \code{0x02} \\
+\code{StatusResponse} & \code{0x03} \\
+\code{Ack} & \code{0x04} \\
+\code{Nack} & \code{0x05} \\
+\end{narrowtable}
+
+\subsection{Varför SOF är två bytes}
+
+En byte räcker inte. Vilket värde man än väljer kommer det förr eller senare att dyka upp mitt i
+en nyttolast, och då hittar mottagaren en frame som inte finns.
+
+Två bytes gör det osannolikt snarare än omöjligt --- \code{0xA5F7} kan fortfarande förekomma i
+data. Det är därför SOF ensamt aldrig är tillräckligt: mottagaren måste också kontrollera att
+längden är rimlig och att checksumman stämmer innan den tror på framen. \Kapref{ch:parsning}
+bygger den kontrollen.
+
+\subsection{Varför LEN behövs när DATA ändå tar slut}
+
+Därför att mottagaren läser en byte i taget och inte kan se framåt. Utan ett längdfält vet den
+aldrig om nästa byte är data eller checksumma.
+
+Alternativet vore ett slutmärke, men då måste det mönstret vara omöjligt i nyttolasten --- vilket
+kräver att man kodar om datan. CAN löser samma problem med bitstoppning (se kursens CAN-bok);
+här räcker ett längdfält.
+
+\subsection{Checksumman}
+
+Kursens checksumma är enkel: \textbf{16-bitars summering av alla bytes fram till CHK-fältet}.
+
+\begin{cppcode}
+std::uint16_t computeChecksum(const std::uint8_t* buf, const std::size_t chkOffset) noexcept
+{
+    std::uint16_t checksum{};
+    for (std::size_t i{}; i < chkOffset; ++i)
+    {
+        checksum += buf[i];
+    }
+    return checksum;
+}
+\end{cppcode}
+
+Den upptäcker enstaka bitfel och de flesta korta felburstar. Den upptäcker däremot inte att två
+bytes bytt plats, och inte att en byte ökat med ett medan en annan minskat med ett --- summan är
+densamma. En CRC gör det bättre, och det är vad CAN använder.
+
+\begin{aside}
+\note Checksumman säger att framen kom fram \emph{hel}. Den säger ingenting om att den kom fram
+\emph{alls}. Skillnaden mellan integritet och leveransgaranti är hela \kapref{ch:bussar}s andra
+hälft, och den är värd att hålla isär från början.
+\end{aside}
+
+\subsection{Serialisering och endianness}
+
+Att serialisera är att skriva ut framens fält i rätt ordning i en buffer. Fält som är bredare än
+en byte --- SOF, SEQ och CHK --- måste skrivas i en bestämd byteordning, och kursens protokoll
+använder \textbf{big-endian}: den mest signifikanta byten först.
+
+\begin{console}
+SEQ = 0x7F05  ->  7F 05      (big-endian, det protokollet säger)
+              ->  05 7F      (little-endian, det din x86 gör i minnet)
+\end{console}
+
+Det här är den klassiska buggen i all protokollkod, och den är obehaglig av två skäl. Den är
+osynlig när båda sidor har samma fel, och den ser ut som slumpmässig korruption när de inte har
+det: \code{0x0005} blir \code{0x0500}, alltså 1280 i stället för 5.
+
+Skriv därför aldrig ut en flerbytesvariabel genom att kopiera minnet. Skriv ut den byte för byte,
+med explicita skiftningar:
+
+\begin{cppcode}
+// Big-endian: most significant byte first, whatever the host's byte order is.
+buf[offset + 0U] = static_cast<std::uint8_t>(value >> 8U);
+buf[offset + 1U] = static_cast<std::uint8_t>(value);
+\end{cppcode}
+
+\subsection{Ett komplett exempel}
+
+En \code{StatusRequest} från adress \code{0x17} till adress \code{0x25}, med sekvensnummer
+\code{0x7F05} och utan nyttolast:
+
+\begin{console}
+A5 F7 00 02 25 17 7F 05 02 5E
+|---| |  |  |  |  |---| |---|
+SOF  LEN TYPE      SEQ   CHK
+        DST--^  ^--SRC
+\end{console}
+
+Checksumman: $\mathtt{A5} + \mathtt{F7} + \mathtt{00} + \mathtt{02} + \mathtt{25} + \mathtt{17} +
+\mathtt{7F} + \mathtt{05} = 606 = \mathtt{0x025E}$.
+
+Notera att \code{DST} står före \code{SRC}. Ordningen är godtycklig men måste vara densamma på
+båda sidor, och att blanda ihop dem ger ett system där varje nod envist svarar sig själv.

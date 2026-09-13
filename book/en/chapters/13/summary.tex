@@ -1,0 +1,17 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item \code{VDDIO2} and a common ground first. Without them a correct SPI implementation looks
+    like a broken one.
+  \item The FPGA node's single-wire bus becomes a real differential CAN bus through a transceiver,
+    whose transmit input is to be \textbf{low for dominant}. Terminate with 120~\textohm{} at each
+    end.
+  \item Climb the ladder in order, and \textbf{never have more than one unknown at a time}.
+  \item Rung 1 (the loopback) is the transport's only test --- that class is covered by no
+    automated test.
+  \item Rung 2 (the masking to eleven bits) proves that you are talking to the register bank and
+    not to an echo of your own wire.
+  \item Debug with hypotheses and measurements, not by swapping wires. Suspect your own half
+    first, prove it before you report it, change one thing at a time.
+\end{itemize}

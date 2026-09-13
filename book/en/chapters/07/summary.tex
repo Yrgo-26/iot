@@ -1,0 +1,17 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item A component test catches \textbf{interaction bugs} --- one call too many, in the wrong
+    order, with an ignored return value --- that every unit test is green in spite of.
+  \item \code{EchoNode} is given its driver through the constructor. If it creates its own it is
+    impossible to test and \code{Interface} is pointless.
+  \item A \textbf{reference}, not a pointer: cannot be null, cannot be swapped. And not a
+    \code{unique_ptr}: the component does not own the driver.
+  \item The header forward-declares \code{Interface} and includes no concrete driver. That line
+    \emph{is} the layer boundary.
+  \item The loop runs to \code{dlc}, not to \code{MaxDataLen}. The counter counts successful
+    echoes, not attempts.
+  \item The test feeds in traffic and inspects outgoing traffic through the same double. The same
+    pattern returns one seam further down.
+\end{itemize}

@@ -1,0 +1,43 @@
+\chapter{About the written test}
+\label{ch:omduggan}
+
+The test is written and is done with pen and paper. The permitted aids are a crib sheet on one A4
+sheet, both sides, and a hexadecimal calculator. \textbf{The register map is handed out with the
+test} --- the indices do not have to be memorised, but reading the map and knowing what it means is
+all the more necessary.
+
+Byte sequences, checksum calculations, register packing and SPI transactions have to be doable by
+hand.
+
+\section*{Structure}
+
+The test has two parts, of roughly equal size:
+
+\begin{booktable}{@{}lLr@{}}
+\thead{Part} & \thead{Content} & \thead{Marks} \\ \midrule
+A & Your own protocol: frame design, parsing, addressing, the error model and the reliability
+  chain (\kapref{ch:frames}--\kapref{ch:bussar}). & 12 \\
+B & CAN and the driver: arbitration, the register map, the SPI transaction, the architecture and
+  the limitations (\kapref{ch:can}--\kapref{ch:avr}). & 13 \\
+\end{booktable}
+
+A pass requires marks in \emph{both} parts. An empty part B cannot be compensated for with a
+perfect part A.
+
+\section*{Pass and distinction questions}
+
+\textbf{The pass questions} check basic understanding: building and reading a frame, computing a
+checksum, following a parser through a byte stream, reading the register map, packing a frame into
+registers, decoding an SPI transaction, and explaining arbitration.
+
+\textbf{The distinction questions} require reasoning: the reliability chain and its consequences,
+analysis of faults in a byte stream, why sticky status bits are needed, the boundaries of the
+layered architecture, and what the design's limitations make impossible for the driver.
+
+\section*{The practice test}
+
+The next chapter is a complete practice test in the same format and with the same distribution of
+marks as the real one. The answers are in the chapter after that --- with the calculations, not
+just the results.
+
+Do it with pen and paper, and read the answers only afterwards.

@@ -1,0 +1,20 @@
+\chapter{Hårdvaran, transporten och factoryn}
+\label{ch:avr}
+
+\lecture{Föreläsning 12}{CAN-drivrutinen}
+
+{\large\itshape Ned till botten: riktiga register, och limmet som binder ihop allt.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item \code{volatile}: vad det är till för, och var det får stå.
+  \item Mikrokontrollerns SPI-periferi, och de tre inställningar som är fällor.
+  \item MVIO: hur kärnan går på 5~V medan SPI-ledningarna går på 3,3~V.
+  \item Factoryn, och testet på om arkitekturen håller.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/12/volatile}
+\input{chapters/12/factory}
+\input{chapters/12/summary}
+\input{chapters/12/exercises}

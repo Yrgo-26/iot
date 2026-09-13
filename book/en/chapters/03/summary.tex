@@ -1,0 +1,18 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item A shared bus is broadcast. Every node hears everything, and \textbf{the routing sits in
+    the node}, not in the bus --- a wire cannot read addresses.
+  \item \code{DST} says who the frame is for, \code{SRC} who it came from so that replies are
+    possible, and \code{SEQ} pairs a reply with its request.
+  \item An error model is to be \textbf{deterministic}. An error that happens on the same byte
+    every run can be tested; a random one cannot.
+  \item The checksum gives \textbf{integrity}, not a \textbf{delivery guarantee}.
+  \item The chain: the checksum detects errors $\rightarrow$ the ACK confirms delivery
+    $\rightarrow$ the timeout detects a missing ACK $\rightarrow$ retransmission fixes it
+    $\rightarrow$ duplicate detection cleans up after the retransmission.
+  \item A retransmission has the \textbf{same} \code{SEQ}. A new one would be a new message.
+  \item A detected duplicate is \textbf{not} to run the application logic again, but
+    \textbf{is} to be acknowledged again. Silence only gives you yet another retransmission.
+\end{itemize}

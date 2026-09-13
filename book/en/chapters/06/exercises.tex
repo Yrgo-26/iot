@@ -1,0 +1,52 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Predict the compiler}{Reasoning}
+\label{ex:6:1}
+Answer first, compile afterwards.
+\begin{enumerate}[a)]
+  \item You remove \code{virtual} from the destructor, create a \code{Stub} with \code{new} and
+    delete it through an \code{Interface*}. Does it compile? What goes wrong?
+  \item You remove \code{[[nodiscard]]} from \code{send()} and write
+    \code{driver.send(frame);}. What does the compiler say, with and without the attribute?
+  \item You misspell a method but write \code{override}. And if you leave out \code{override}?
+\end{enumerate}
+Question c) is the reason \code{override} is mandatory in the project.
+
+\exercise{One method too many}{Reasoning}
+\label{ex:6:2}
+Somebody proposes adding to the interface:
+\begin{cppcode}
+[[nodiscard]] virtual std::uint32_t readStatusRegister() const noexcept = 0;
+\end{cppcode}
+"It is handy when debugging."
+\begin{enumerate}[a)]
+  \item What would \code{Stub} return from it?
+  \item What happens to \code{EchoNode} if somebody starts using it?
+  \item What happens the day the register map changes?
+  \item Where does the method belong instead?
+\end{enumerate}
+
+\exercise{The polymorphism}{Code}
+\label{ex:6:3}
+In the supplied \code{test_stub.cpp} there is a helper function taking a
+\code{driver::can::Interface&} instead of a \code{Stub&}.
+\begin{enumerate}[a)]
+  \item Does it contain the word \code{Stub} anywhere?
+  \item Why is it written against the interface?
+  \item In \kapref{ch:testning} the same function is called with a \code{Spi}. What in your code
+    has to be right for that to work?
+\end{enumerate}
+
+\exercise{The limits of the stub}{Reasoning}
+\label{ex:6:4}
+\begin{enumerate}[a)]
+  \item List four things the stub does not simulate.
+  \item Pick one of them and describe how you could add it.
+  \item What would it cost? When does a test double become so complicated that it needs testing
+    itself?
+\end{enumerate}

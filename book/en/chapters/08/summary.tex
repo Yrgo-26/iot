@@ -1,0 +1,16 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item SPI is \textbf{full duplex}: every clock pulse shifts one bit in each direction. A read
+    therefore has to send dummy bytes.
+  \item Every transaction is \textbf{exactly five bytes}: a command byte plus four data bytes, MSB
+    first, with \code{SS} low the whole way.
+  \item On a read the register value is \textbf{latched} once, at the end of the command byte. The
+    four bytes always belong to one coherent sample.
+  \item The byte clocked in during the command byte is junk. Discard it.
+  \item \code{SS} has to go high between transactions. Two transactions during one low period fail
+    \emph{silently}.
+  \item A transaction costs 40--50~µs. A \code{send()} is six of them, that is, longer than the
+    CAN frame it sends.
+\end{itemize}

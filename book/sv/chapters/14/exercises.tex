@@ -1,0 +1,38 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+\exercise{Läs din egen trafik}{Kod}
+\label{ex:14:1}
+Skicka en frame med känt ID och känd nyttolast.
+\begin{enumerate}[a)]
+  \item Hitta den i tracen. Stämmer identifierare, DLC och data?
+  \item Stämmer databytesens \emph{ordning}?
+  \item Vilka fält ser du i tracen som registerkartan \emph{inte} exponerar?
+\end{enumerate}
+
+\exercise{Åt andra hållet}{Kod}
+\label{ex:14:2}
+Skicka en frame från analysatorn till din nod.
+\begin{enumerate}[a)]
+  \item Returnerar \code{receive()} \code{true}?
+  \item Vad hände med \code{STATUS} bit 1, före och efter din \code{RX_ACK}?
+  \item Skicka två frames tätt efter varandra. Kommer båda fram till applikationen? Varför?
+\end{enumerate}
+
+\exercise{Kvittensen}{Resonemang}
+\label{ex:14:3}
+\begin{enumerate}[a)]
+  \item Kvitterar analysatorn dina frames? Hur ser du det?
+  \item Koppla bort den och sänd med bara din nod på bussen. Vad säger felflaggan?
+  \item Vad skulle en fullständig CAN-kontroller ha gjort i det läget, och varför gör inte den
+    här det?
+\end{enumerate}
+
+\exercise{Flaskhalsen}{Räkning}
+\label{ex:14:4}
+\begin{enumerate}[a)]
+  \item Vad är bussbelastningen med din nod som enda sändare?
+  \item Hur lång tid tar en \code{send()} i din drivrutin, och hur lång tid tar framen på bussen?
+  \item Vad begränsar dig --- bussen eller SPI-länken? Stämmer mätningen med räkningen i
+    \kapref{ch:spi}?
+\end{enumerate}

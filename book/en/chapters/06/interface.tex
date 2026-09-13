@@ -1,0 +1,119 @@
+\section{The interface}
+\label{sec:interface}
+
+\begin{cppcode}
+namespace driver::can
+{
+struct Frame;
+
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+
+    [[nodiscard]] virtual bool send(const Frame& frame)      = 0;
+    [[nodiscard]] virtual bool receive(Frame& frame)         = 0;
+    [[nodiscard]] virtual bool hasError() const noexcept     = 0;
+    virtual void clearError() noexcept                       = 0;
+};
+} // namespace driver::can
+\end{cppcode}
+
+Every part of it, one at a time:
+
+\textbf{A virtual destructor.} Objects will be deleted through an \code{Interface*}. Without
+\code{virtual}, only the base class's destructor runs, and a \code{Spi} holding resources leaks
+them --- undefined behaviour, and one of the few bugs in this design that no test catches.
+\code{= default} because there is nothing to do; \code{noexcept} because destructors must never
+throw.
+
+\textbf{\code{= 0} on all four.} The class is purely abstract: it cannot be instantiated and has
+no implementation to inherit by accident. It is a contract and nothing else.
+
+\textbf{\code{[[nodiscard]]} on three of the four.} \code{send()} returns \code{false} when the
+hardware is busy. A caller that ignores that believes the frame went out --- the most common
+driver bug there is, turned into a compiler warning here.
+
+\textbf{\code{const} on \code{hasError()}.} Asking about an error does not change the driver, and
+the method can therefore be called on a \code{const Interface&}.
+
+\textbf{\code{noexcept} on the two error methods.} They are called from error-handling paths, and
+an error-handling path that can itself throw is hard to reason about. They also do nothing that
+\emph{can} fail.
+
+\subsection{What is not here}
+
+No \code{init()}. No \code{setBaudRate()}. No \code{readRegister()}.
+
+\textbf{The test is: can both \code{Stub} and \code{Spi} implement the method meaningfully?}
+\code{readRegister()} they cannot --- the stub has no registers. Such a method would have forced
+the stub to lie, and forced the application to know that registers exist.
+
+\section{The stub}
+\label{sec:stub}
+
+\code{Stub} is \code{final}, inherits \code{Interface}, and simulates CAN in memory:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Method} & \thead{Contract} \\ \midrule
+The constructor & \code{myLastFrame} empty, \code{myInitialized = true},
+  \code{myHasData = false}. \\
+\code{send()} & \code{false} if uninitialised. Otherwise: store the frame, set \code{myHasData},
+  return \code{true}. \\
+\code{receive()} & \code{false} if uninitialised or without data. Otherwise: copy out the frame,
+  clear \code{myHasData}, return \code{true}. \\
+\code{hasError()} & Always \code{false}. \\
+\code{clearError()} & Does nothing. \\
+\code{inject()} & Stores a frame for a later \code{receive()}. \\
+\end{booktable}
+
+The copy and move operations are deleted in the public part. A \code{Stub} represents a
+(simulated) hardware resource, and two copies of the same resource are not two resources.
+
+\subsection{Why \texorpdfstring{\code{inject()}}{inject()} is not in the interface}
+
+It exists only for the tests' sake: it simulates a frame having arrived on the bus. A \code{Spi}
+cannot implement it --- it cannot conjure up traffic that does not exist.
+
+The consequence is the pattern that recurs throughout the book:
+
+\begin{cppcode}
+driver::can::Stub stub{};            // concrete type: has inject()
+app::EchoNode node{stub, 0x200U};    // takes an Interface&: does not
+stub.inject(frame);                  // the test talks to the stub directly
+node.run();                          // the component knows nothing about it
+\end{cppcode}
+
+The test holds the \textbf{concrete} type, the component sees only the \textbf{interface}.
+
+\subsection{What the stub does not simulate}
+
+No errors. No busy hardware. No queue --- a second \code{send()} overwrites the first. No
+arbitration, no CRC.
+
+That is deliberate. The stub's job is to let \code{EchoNode} run, not to be a CAN simulator.
+
+\begin{aside}
+\note Knowing where the limit of a test double's realism lies is a skill in itself. \textbf{A stub
+that grows until it is a second implementation of the hardware is a stub that needs testing
+itself.} Anybody who wants to test how the driver behaves when the hardware is busy needs a
+different double, one seam further down --- and that arrives in \kapref{ch:testning}.
+\end{aside}
+
+\subsection{Stub, not mock}
+
+A \textbf{stub} answers calls with pre-programmed answers; the test checks what the calling code
+did with the answers. A \textbf{mock} also checks that it was called correctly --- the right
+method, the right arguments, the right number of times.
+
+\code{Stub} is a stub. \code{ScriptedTransport} in \kapref{ch:testning} is closer to a mock.
+
+\subsection{The seam has already paid off}
+
+The argument for an interface is usually hypothetical. Here it is not: an earlier version of the
+design reached the registers through \textbf{memory-mapped I/O} at \code{0xFF200000}, which
+assumes an address bus out to the FPGA fabric that the microcontroller does not have.
+
+Everything above \code{Interface} survived the change to SPI \textbf{unchanged}. The old variant
+had \code{Fpga} and \code{volatile} pointers where we have \code{Spi} and \code{ByteTransport}.
+Neither of them is wrong; they are two implementations under the same seam.

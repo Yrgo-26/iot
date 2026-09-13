@@ -1,0 +1,108 @@
+\section{The register map}
+\label{sec:regmap}
+
+Thirteen registers, each of them 32 bits. \textbf{The index} is what goes out on the wire; the
+offset column is always $\text{index} \times 4$ and is a legacy of an older, memory-mapped variant
+of the same design.
+
+\begin{booktable}{@{}rlllL@{}}
+\thead{Idx} & \thead{Register} & \thead{Offset} & \thead{Acc.} & \thead{Description} \\ \midrule
+0 & \code{STATUS} & \code{0x00} & R & Bit 0: TX ready. Bit 1: RX valid. Bit 2: Error. \\
+1 & \code{TX_ID} & \code{0x04} & R/W & 11-bit transmit ID (bits 10--0). \\
+2 & \code{TX_DLC} & \code{0x08} & R/W & Data Length Code (bits 3--0, value 0--8). \\
+3 & \code{TX_DATA_LO} & \code{0x0C} & R/W & Transmit data bytes 0--3 (byte 0 = MSB). \\
+4 & \code{TX_DATA_HI} & \code{0x10} & R/W & Transmit data bytes 4--7. \\
+5 & \code{TX_SEND} & \code{0x14} & W & Write \code{0x1} to trigger a transmission. \\
+6 & \code{RX_ID} & \code{0x18} & R & Received identifier. \\
+7 & \code{RX_DLC} & \code{0x1C} & R & Received DLC. \\
+8 & \code{RX_DATA_LO} & \code{0x20} & R & Received data bytes 0--3. \\
+9 & \code{RX_DATA_HI} & \code{0x24} & R & Received data bytes 4--7. \\
+10 & \code{RX_ACK} & \code{0x28} & W & Write \code{0x1} to acknowledge. \\
+11 & \code{ERROR_FLAGS} & \code{0x2C} & R/W & The error register; write \code{0x0} to clear. \\
+12 & \code{TX_ABORT} & \code{0x30} & W & Write \code{0x1} to force TX ready back. \\
+\end{booktable}
+
+Indices 13--15 are reserved: a read gives \code{0x00000000}, a write is ignored.
+
+\subsection{STATUS: the three bits everything revolves around}
+
+\begin{booktable}{@{}rlLL@{}}
+\thead{Bit} & \thead{Meaning} & \thead{Set by} & \thead{Cleared by} \\ \midrule
+0 & TX ready & reset; a completed transmission; a rising edge on the error level while the bit is
+  low; a write to \code{TX_ABORT} & an accepted write to \code{TX_SEND} \\
+1 & RX valid & a received frame, which latches \code{RX_*} at the same time & a write of
+  \code{0x1} to \code{RX_ACK} \\
+2 & Error & a \textbf{rising edge} on the controller's error level & a write of \code{0x0} to
+  \code{ERROR_FLAGS} \\
+\end{booktable}
+
+Bits 31--3 always read as \code{0}.
+
+\textbf{Read that table once more.} Every bit has an explicit clear, and that clearing is the
+driver's responsibility. Forget \code{RX_ACK} and bit 1 stays set forever and you read the same
+frame in an endless loop. Forget that \code{TX_SEND} clears bit 0 and you will wonder why the
+second transmission is never accepted.
+
+\subsection{Rules that are easy to miss}
+
+\begin{itemize}
+  \item \code{TX_SEND} and \code{RX_ACK} require \textbf{bit 0 to be set}; the other bits are
+    ignored.
+  \item \code{ERROR_FLAGS} is cleared \textbf{only by an all-zero word}. \code{0x1} does nothing,
+    and \code{0x000000FF} does nothing even though bit 0 is set. The opposite rule to the two
+    above.
+  \item \code{TX_ID} masks to eleven bits, \code{TX_DLC} to four. A write of \code{0xFFFFFFFF}
+    reads back as \code{0x000007FF} and \code{0x0000000F} respectively.
+  \item Writes to \code{STATUS} and \code{RX_*} are silently ignored.
+  \item Reads of \code{TX_SEND} and \code{RX_ACK} give \code{0x00000000}.
+\end{itemize}
+
+\subsection{Data byte order}
+
+\code{TX_DATA} and \code{RX_DATA} are 64 bits wide, with \textbf{data byte 0 in the most
+significant bits}:
+
+\begin{console}
+bit 63                                                              bit 0
++--------+--------+--------+--------+--------+--------+--------+--------+
+| byte 0 | byte 1 | byte 2 | byte 3 | byte 4 | byte 5 | byte 6 | byte 7 |
++--------+--------+--------+--------+--------+--------+--------+--------+
+ \___________ TX_DATA_LO ___________/ \___________ TX_DATA_HI __________/
+\end{console}
+
+\code{LO} and \code{HI} refer to the order of the register pair, not to bit significance:
+\textbf{\code{TX_DATA_LO} carries the first four data bytes.} That is the most common misreading
+in the project, and it does not show until a frame arrives back to front.
+
+A frame with \code{dlc = 2} and data \code{AA BB} is therefore packed as
+\code{TX_DATA_LO = 0xAABB0000} and \code{TX_DATA_HI = 0x00000000}.
+
+\subsection{The three limitations}
+\label{sec:limits}
+
+The hardware is simplified compared with real CAN in many respects. Three of them reach all the
+way up into your code, and have to be handled rather than hidden.
+
+\begin{limitation}
+\textbf{A lost arbitration looks like a successful transmission.} \code{STATUS} bit 0 comes back
+in both cases. The bit means \emph{the transmit port is free again}, not \emph{the frame arrived}.
+If you want to know the outcome: wait for bit 0, and \textbf{then} read \code{ERROR_FLAGS}.
+\end{limitation}
+
+\begin{limitation}
+\textbf{\code{ERROR_FLAGS} is one bit for four causes} --- lost arbitration, stuff error, failed
+CRC and a received remote frame. You can see \emph{that} something went wrong, never \emph{what}.
+Retry logic that tells them apart cannot be written against this interface.
+\end{limitation}
+
+\begin{limitation}
+\textbf{No buffering on the receive side.} The controller holds exactly one frame. If the next one
+arrives before the previous has been acknowledged it is overwritten, and the newest wins. Poll
+often --- and know that at some traffic intensity that will still not be enough.
+\end{limitation}
+
+\begin{aside}
+\note The hardware validates nothing. A \code{TX_DLC} of \code{0xF} is stored and passed on
+exactly as it is. Rejecting invalid frames is \textbf{the driver's} responsibility, and only the
+driver's: two copies of the same rule are two things that have to be kept in step.
+\end{aside}

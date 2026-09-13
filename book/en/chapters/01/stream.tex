@@ -1,0 +1,43 @@
+\section{The problem with a byte stream}
+\label{sec:stream}
+
+Two systems are connected by a serial link --- UART, RS-485, SPI, anything at all. One sends
+bytes, the other receives them. That is all the link does.
+
+Suppose the sending node wants to send the temperature 23 degrees and the humidity 45 per cent.
+It sends two bytes:
+
+\begin{console}
+17 2D
+\end{console}
+
+The receiver gets two bytes. And now come the questions, one after the other:
+
+\begin{itemize}
+  \item \textbf{Where does the message begin?} If the receiver was connected in the middle of a
+    transfer, \code{17} may well be the second byte of something else.
+  \item \textbf{How long is it?} Are more bytes coming, or was that all?
+  \item \textbf{What do they mean?} That \code{17} is the temperature and \code{2D} the humidity
+    is an agreement that exists nowhere in the stream.
+  \item \textbf{Did they arrive intact?} A disturbance that changed \code{17} into \code{16}
+    looks exactly like a temperature of 22 degrees.
+  \item \textbf{Who sent them, and to whom?} On a bus with more than two nodes that is not
+    obvious.
+\end{itemize}
+
+None of the questions can be answered from the bytes themselves. The answers have to be added,
+and what adds them is a \textbf{protocol}.
+
+\subsection{Frame versus stream}
+
+A \textbf{frame} is a delimited, self-describing unit in the stream. It says where it begins, how
+long it is, what it contains, who it comes from, who it is for, and whether it arrived intact.
+
+The stream is still nothing but bytes --- it always is. The difference is that the bytes are now
+arranged according to an agreement both sides know about, and one that can be checked.
+
+\begin{aside}
+\note This is the only idea in the chapter, and the rest of the book is its consequences. Both the
+protocol of your own in \kapref{ch:parsning} and CAN in \kapref{ch:can} solve the same five
+questions. They differ in \emph{where} the solution sits: in your code, or in silicon.
+\end{aside}

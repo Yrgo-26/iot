@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item \code{Interface} gör applikationen testbar; \code{ByteTransport} gör \textbf{drivrutinen}
+    testbar. Utan den andra sömmen körs \code{Spi} första gången på hårdvara som samtidigt
+    felsöks av någon annan.
+  \item Transporten är medvetet dum: \code{select()}, \code{deselect()}, \code{transfer()}. Den vet
+    inte att en transaktion är fem bytes lång --- ramningen tillhör protokollet.
+  \item Registerkonstanterna är \textbf{index}, inte offsetar, och maskerna skrivs som skiftningar
+    så att de går att jämföra rad för rad mot registerkartan.
+  \item \code{readReg()} kastar byten som klockas in under kommandobyten. Fyra av fem bidrar.
+  \item \textbf{Casta före skiftningen.} En \code{std::uint8_t} befordras annars till \code{int},
+    och en byte med bit 7 satt skiftad 24 steg skriver i teckenbiten.
+  \item Hjälpfunktionerna är privata och innehåller ingen logik. All betydelse ligger i lagret
+    ovanför.
+\end{itemize}

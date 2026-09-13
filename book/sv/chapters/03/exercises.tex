@@ -1,0 +1,50 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Routing}{Resonemang}
+\label{ex:3:1}
+\begin{enumerate}[a)]
+  \item Sker routingen i bussen eller i noden? Motivera med vad en fysisk ledning kan och inte kan.
+  \item En nod tar emot en frame med korrekt checksumma, men \code{DST} är inte dess adress. Vad
+    ska den göra?
+  \item Varför ska den \emph{inte} skicka \code{Nack} i det läget?
+\end{enumerate}
+
+\exercise{Felmodellen}{Resonemang}
+\label{ex:3:2}
+För vart och ett av felen --- tappad byte, ändrad bit, fördröjning --- svara på:
+\begin{enumerate}[a)]
+  \item Blir framen strukturellt korrekt?
+  \item Vilken mekanism upptäcker felet?
+  \item Vad står parsern i för tillstånd efteråt?
+\end{enumerate}
+Ett av de tre felen ska inte orsaka något problem alls. Vilket, och vad betyder det om det ändå
+gör det?
+
+\exercise{Förlorad kvittens}{Avkodning}
+\label{ex:3:3}
+Nod A skickar en \code{StatusRequest} med \code{SEQ 0x0007} till nod B. B tar emot den, behandlar
+den, och skickar \code{Ack}. Kvittensen tappas.
+\begin{enumerate}[a)]
+  \item Vad gör A härnäst, och efter vad?
+  \item Vad ser B då?
+  \item Vad ska B göra, och vad ska B inte göra?
+  \item Vad hade hänt om B varit tyst i stället?
+\end{enumerate}
+
+\exercise{Timeout-värdet}{Resonemang}
+\label{ex:3:4}
+\begin{enumerate}[a)]
+  \item Vad händer om timeout är för kort? Ge två konsekvenser.
+  \item Vad händer om den är för lång?
+  \item Vilken information skulle behövas för att välja värdet rätt, och varför har en nod
+    sällan den?
+\end{enumerate}
+
+\exercise{Kedjan}{Resonemang}
+\label{ex:3:5}
+Räkna upp de fem mekanismerna i tillförlitlighetskedjan, i ordning. För var och en: vilket problem
+löser den, och vilket nytt problem skapar den?

@@ -1,0 +1,40 @@
+\section*{Kapitel 2 --- Byte-parsning}
+\addcontentsline{toc}{section}{Kapitel 2 --- Byte-parsning}
+
+\solution{ex:2:1}{Hitta framen}
+\ans{a} Vid index 4 (nollindexerat): \code{32 74 00 FF} är skräp, och \code{A5 F7} på index 4--5
+är SOF.
+\ans{b} \code{A5 F7 03 03 25 17 7F 05 10 20 30 02 C2} --- tretton bytes, alltså tio header- och
+footerbytes plus tre databytes.
+\ans{c} Kasta dem. De tas emot i \code{WaitForSof1} och förkastas en och en, eftersom ingen av dem
+är \code{0xA5}.
+\ans{d} \code{TYPE = 0x03}, alltså \code{StatusResponse}, från \code{SRC = 0x17} till
+\code{DST = 0x25}.
+
+\solution{ex:2:2}{SOF-fällan}
+\ans{a} Den naiva implementationen går tillbaka till \code{WaitForSof1} och kastar byten. Då
+kastar den den byte som just kan ha varit den nya framens första.
+\ans{b} Stanna kvar i \code{WaitForSof2}. Byten var \code{0xA5}, alltså en möjlig SOF-start i sin
+egen rätt.
+\ans{c} Till exempel \code{A5 A5 F7 ...}: här är den andra \code{0xA5} framens verkliga början.
+Den naiva parsern kastar den, hamnar i \code{WaitForSof1}, ser \code{0xF7} --- som inte är
+\code{0xA5} --- och missar hela framen.
+
+\solution{ex:2:3}{Tappad byte}
+\ans{a} \code{LEN} är fortfarande 3, så parsern samlar \code{10 30 02} som payload och läser
+därefter \code{C2} som den \emph{första} checksummabyten.
+\ans{b} Inte på den här strömmen. Parsern står i \code{WaitForChk2} och väntar på en byte som
+aldrig kommer; först när nästa byte anländer blir framningen klar.
+\ans{c} \code{false}. Framningen kan lyckas, men \code{Frame::deserialize()} räknar om checksumman
+och den stämmer inte.
+\ans{d} \code{WaitForChk2} tills nästa byte kommer. För att hitta nästa frame måste anroparen
+anropa \code{reset()}, varefter parsern söker efter \code{0xA5} igen.
+
+\solution{ex:2:4}{Längdfältet}
+\ans{a} Sätt \code{LEN} till ett värde större än \code{MaxPayloadLen}, till exempel
+\code{A5 F7 FF 00 ...}. Parsern samlar då 255 databytes i en buffert som rymmer färre.
+\ans{b} För sent. Skadan sker under insamlingen, alltså i \code{processByte()}, långt innan
+någon hinner anropa \code{extractFrame()}.
+\ans{c} Att varje längd som kommer utifrån ska kontrolleras mot buffertens storlek \emph{innan}
+den används. Samma regel gäller \code{TX_DLC} i \kapref{ch:driver}: hårdvaran validerar inte, så
+drivrutinen måste avvisa \code{dlc > 8} innan den skriver något.

@@ -1,0 +1,98 @@
+\section{Why an analyser}
+\label{sec:whyanalyzer}
+
+Until now every observation has been made by one of the two halves. Your driver says that it sent
+a frame; the hardware group's testbench says that the controller transmitted one. Both can be
+wrong in the same way, since both are written against the same document by two people who may have
+misread it identically.
+
+A \textbf{bus analyser} is a third party that believes neither of you. It is a real CAN controller
+on the bus, and it decodes what is actually on the wires.
+
+That is why the lab comes last and not first: only now is there traffic to look at, and only now
+does the answer mean anything.
+
+\begin{aside}
+\note The analyser also acknowledges your frames. That is worth knowing: a lone node on the bus
+never gets an acknowledgement, and \emph{a complete} CAN controller would then have retransmitted
+for all eternity. The design in this course never reads the ACK slot back, so it notices nothing
+--- but the difference becomes visible in the trace as soon as the analyser is connected.
+\end{aside}
+
+\section{Reading a trace}
+\label{sec:trace}
+
+Set the analyser to the same bit rate as the design, and check that the termination is still
+120~\textohm{} at each end --- not three resistors just because there are now three nodes.
+
+Send a frame with a known ID and a known payload from your node, and find it:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Column} & \thead{What you check} \\ \midrule
+Identifier & Does it match what you wrote to \code{TX_ID}? \\
+DLC & Does it match \code{TX_DLC}? \\
+Data & Are the bytes right, \emph{and in the right order}? This is where a swap of
+  \code{TX_DATA_LO}/\code{HI} finally becomes visible. \\
+Timestamp & How often do they arrive? Does that match how often your code calls \code{send()}? \\
+\end{booktable}
+
+Then the other way round: send a frame \emph{from} the analyser to your node. Does
+\code{receive()} return \code{true}? Is the content right? And --- the thing that is easy to
+forget --- did \code{STATUS} bit 1 go low when you wrote \code{RX_ACK}?
+
+\section{Looking for the simplifications}
+\label{sec:simplifications}
+
+The design is simplified compared with real CAN in several respects. Some of them can be seen from
+the outside, and that is the most interesting part of the lab.
+
+\begin{booktable}{@{}lL@{}}
+\thead{Simplification} & \thead{What you can look for} \\ \midrule
+No ACK read-back & Disconnect the analyser and transmit with only your node on the bus. What does
+  the error flag say? What \emph{would} a real node have done? \\
+No error frames & What happens if the analyser sends one? \\
+No automatic retransmission & A frame that went wrong is not resent by the hardware. Can you see
+  that? \\
+No receive queue & Let the analyser send two frames close together. Do both reach your
+  application? \\
+\end{booktable}
+
+\textbf{Finding a discrepancy is not the same as finding a fault.} The task is to be able to say
+\emph{which documented simplification} explains what you see --- and which discrepancies have
+\emph{no} such explanation. It is the latter that are interesting, for both classes.
+
+\section{Bus load}
+\label{sec:busload}
+
+The analyser shows the bus load. Compare it with the time budget in \kapref{ch:spi}:
+
+\begin{itemize}
+  \item What is the load with your node as the only transmitter?
+  \item A \code{send()} takes six SPI transactions, that is, around 270~µs. A maximal CAN frame is
+    around 130~µs. \textbf{What is actually limiting you --- the bus or the link?}
+\end{itemize}
+
+The answer to that last question is the whole point of measuring instead of assuming, and it is
+the one place in the course where you can see it with your own eyes.
+
+\section{One frame, all the way}
+\label{sec:endtoend}
+
+Finish by tracing a single frame through the whole stack, naming each layer and who built it:
+
+\begin{console}
+app::EchoNode            -> you
+driver::can::Interface   -> you
+driver::can::Spi         -> you
+driver::can::ByteTransport -> you
+AvrSpiTransport          -> you
+===== four wires =====
+spi_slave                -> supplied
+spi_reg_bridge           -> the hardware group
+register_bank            -> the hardware group
+can_controller           -> the hardware group
+===== transceiver =====
+the CAN bus              -> physics
+\end{console}
+
+Ten layers, two classes, one contract --- and a frame that arrived.

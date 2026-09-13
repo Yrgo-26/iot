@@ -1,0 +1,57 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Förutsäg}{Resonemang}
+\label{ex:5:1}
+Svara innan du kompilerar, och kontrollera sedan.
+\begin{enumerate}[a)]
+  \item Vad är \code{sizeof(driver::can::Frame)} på din maskin? Varför är det inte 11?
+  \item Kompilerar \code{driver::can::Frame f{0x123U, 2U, {0xAAU, 0xBBU}}}? Vad blir
+    \code{f.data[7]}?
+  \item Vad händer om du lägger till en egen konstruktor och sedan försöker kompilera raden i b)?
+\end{enumerate}
+
+\exercise{constexpr}{Kod}
+\label{ex:5:2}
+Lägg till följande i en testfil:
+\begin{cppcode}
+static_assert(driver::can::isValid(driver::can::Frame{0x7FFU, 8U, {}}));
+static_assert(!driver::can::isValid(driver::can::Frame{0x800U, 0U, {}}));
+\end{cppcode}
+\begin{enumerate}[a)]
+  \item Vad bevisar det att raderna kompilerar?
+  \item Vad kostar de vid körning?
+\end{enumerate}
+
+\exercise{Läs sviten}{Resonemang}
+\label{ex:5:3}
+Öppna den utdelade \code{test_frame.cpp} och svara utan att köra den.
+\begin{enumerate}[a)]
+  \item Vilka gränsvärden testas för \code{id} respektive \code{dlc}? Varför just de?
+  \item Vilket testfall skulle fallera om \code{isValid()} skrev \code{<} i stället för
+    \code{<=}? Vilka skulle fortfarande vara gröna?
+  \item Finns det något krav i det här kapitlet som sviten \emph{inte} kontrollerar?
+\end{enumerate}
+
+\exercise{Bryt koden}{Kod}
+\label{ex:5:4}
+Ändra \code{isValid()} så att \code{id}-gränsen blir \code{<} i stället för \code{<=}, och kör
+sviten.
+\begin{enumerate}[a)]
+  \item Vilket testfall fallerar, och vad står i utskriften?
+  \item Följ arbetsgången i \secref{sec:pyramid}. Hur lång tid tog det att hitta felet?
+  \item Återställ koden.
+\end{enumerate}
+
+\exercise{Var ligger valideringen}{Resonemang}
+\label{ex:5:5}
+En gruppmedlem föreslår att också \code{EchoNode} ska kontrollera \code{dlc} innan den anropar
+\code{send()}, "för säkerhets skull".
+\begin{enumerate}[a)]
+  \item Vad är argumentet för?
+  \item Vad är argumentet emot?
+  \item Vad händer den dag \code{MaxDataLen} ändras?
+\end{enumerate}

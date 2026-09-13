@@ -1,0 +1,63 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Få sviten grön}{Kod}
+\label{ex:11:1}
+Lägg in de utdelade filerna oförändrade och kör dem. Notera hur många testfall som fallerar
+första gången.
+
+Arbeta igenom dem ett i taget, och för logg:
+
+\begin{narrowtable}{@{}llll@{}}
+\thead{Testfall} & \thead{Vad namnet sa} & \thead{Var buggen låg} & \thead{Minuter} \\
+\end{narrowtable}
+
+Kolumnen "minuter" brukar falla dramatiskt under uppgiftens gång, och skälet är att man slutar
+gissa.
+
+\exercise{Vilken dubblare fångar vad?}{Resonemang}
+\label{ex:11:2}
+För var och en: \code{ScriptedTransport}, \code{BankTransport}, båda, eller ingen? Motivera i en
+mening, och \textbf{kontrollera sedan genom att införa buggen}.
+\begin{enumerate}[a)]
+  \item \code{TX_DATA_LO} och \code{TX_DATA_HI} förväxlade.
+  \item \code{clearError()} skriver \code{0x1}.
+  \item \code{receive()} maskerar inte mot \code{dlc}.
+  \item \code{receive()} glömmer \code{RX_ACK}.
+  \item \code{readReg()} räknar med kommandobytens \code{MISO}-svar.
+  \item \code{send()} validerar inte \code{dlc}.
+  \item \code{MOSI} och \code{MISO} omkastade i kopplingen.
+\end{enumerate}
+Rad g) är med av ett skäl. Vilket?
+
+\exercise{Läs sviten som kravspecifikation}{Resonemang}
+\label{ex:11:3}
+Öppna den utdelade \code{test_spi.cpp}.
+\begin{enumerate}[a)]
+  \item Vilket testfall motsvarar exemplet \code{83 AA BB 00 00} i \kapref{ch:spi}?
+  \item Vilket testfall kontrollerar att en ogiltig frame inte kostar en enda transaktion? Hur
+    kontrollerar det den saken?
+  \item Hur många testfall använder vardera dubblaren? Stämmer fördelningen med resonemanget i
+    \secref{sec:twodoubles}?
+\end{enumerate}
+
+\exercise{Hela stacken}{Kod}
+\label{ex:11:4}
+Kör testfallet som kopplar \code{EchoNode} $\rightarrow$ \code{Spi} $\rightarrow$
+\code{BankTransport}.
+\begin{enumerate}[a)]
+  \item Hur många rader har ändrats i \code{EchoNode} sedan \kapref{ch:komponent}?
+  \item Vilken egenskap hos arkitekturen gjorde bytet gratis?
+  \item Vad hade behövt ändras om \code{EchoNode} tagit en \code{driver::can::Spi&} i
+    konstruktorn?
+\end{enumerate}
+
+\exercise{Vad återstår}{Resonemang}
+\label{ex:11:5}
+Skriv en lista på allt som fortfarande kan vara fel trots att hela sviten är grön. Sikta på minst
+fem punkter, varav minst en du hittat på egen hand.
+
+Listan är din checklista inför \kapref{ch:bringup}.

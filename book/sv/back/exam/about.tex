@@ -1,0 +1,41 @@
+\chapter{Om duggan}
+\label{ch:omduggan}
+
+Duggan är skriftlig och genomförs med papper och penna. Tillåtna hjälpmedel är en fusklapp på ett
+A4-blad, båda sidor, och en hexadecimal miniräknare. \textbf{Registerkartan delas ut med duggan} ---
+indexen behöver inte memoreras, men att läsa kartan och veta vad den betyder behövs desto mer.
+
+Byte-sekvenser, checksumberäkningar, registerpackning och SPI-transaktioner ska kunna göras
+för hand.
+
+\section*{Upplägg}
+
+Duggan har två delar, ungefär lika stora:
+
+\begin{booktable}{@{}lLr@{}}
+\thead{Del} & \thead{Innehåll} & \thead{Poäng} \\ \midrule
+A & Det egna protokollet: framedesign, parsning, adressering, felmodell och
+  tillförlitlighetskedjan (\kapref{ch:frames}--\kapref{ch:bussar}). & 12 \\
+B & CAN och drivrutinen: arbitrering, registerkartan, SPI-transaktionen, arkitekturen och
+  begränsningarna (\kapref{ch:can}--\kapref{ch:avr}). & 13 \\
+\end{booktable}
+
+Godkänt kräver poäng i \emph{båda} delarna. Det går alltså inte att kompensera en tom del B med en
+perfekt del A.
+
+\section*{G- och VG-uppgifter}
+
+\textbf{G-uppgifterna} kontrollerar grundläggande förståelse: bygga och läsa en frame, räkna en
+checksumma, följa en parser genom en byte-ström, läsa registerkartan, packa en frame i register,
+avkoda en SPI-transaktion, och förklara arbitrering.
+
+\textbf{VG-uppgifterna} kräver resonemang: tillförlitlighetskedjan och dess konsekvenser,
+analys av fel i en byte-ström, varför klibbiga statusbitar behövs, lagerarkitekturens gränser, och
+vad konstruktionens begränsningar gör omöjligt för drivrutinen.
+
+\section*{Övningsduggan}
+
+Nästa kapitel är en fullständig övningsdugga i samma format och med samma poängfördelning som den
+skarpa. Svaren står i kapitlet därefter --- med uträkningarna, inte bara resultaten.
+
+Gör den med papper och penna, och läs svaren först efteråt.

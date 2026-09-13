@@ -1,0 +1,102 @@
+\section{Tillförlitlig leverans}
+\label{sec:reliability}
+
+Checksumman ger \textbf{integritet}: den som tar emot en frame vet att den är hel. Den ger ingen
+\textbf{leveransgaranti}: sändaren vet fortfarande inte om något kom fram.
+
+Skillnaden är hela det här avsnittet, och de fyra mekanismer som följer bygger på varandra i tur
+och ordning.
+
+\subsection{ACK och NACK}
+
+Mottagaren svarar. Kom framen fram hel skickar den ett \code{Ack}; var den trasig på ett sätt som
+ändå går att svara på skickar den ett \code{Nack}.
+
+Reglerna för kvittensframen:
+
+\begin{itemize}
+  \item \code{DST} och \code{SRC} byter plats mot den kvitterade framen.
+  \item \code{SEQ} är \textbf{samma} som i den kvitterade framen --- det är så sändaren vet vad
+    som kvitteras.
+  \item \code{LEN} är noll.
+\end{itemize}
+
+Att \code{SEQ} följer med är inte en detalj. Utan det vet en sändare som har två frames i luften
+inte vilken av dem som kom fram.
+
+\begin{aside}
+\note Ett \code{Nack} går bara att skicka när framen är trasig på ett sätt som lämnar avsändare
+och sekvensnummer läsbara. Är checksumman fel kan man inte lita på \emph{något} fält --- inklusive
+\code{SRC} --- så i praktiken är utebliven kvittens det vanliga sättet ett fel visar sig.
+\end{aside}
+
+\subsection{Timeout}
+
+Och därmed: vad gör sändaren när ingenting kommer tillbaka?
+
+Den kan inte vänta för alltid, och den kan inte veta skillnaden mellan en förlorad frame, en
+förlorad kvittens och en långsam mottagare. Den enda utvägen är att bestämma sig efter en viss
+tid: en \textbf{timeout}.
+
+Att välja timeout-värde är en avvägning utan rätt svar:
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{För kort} & \thead{För lång} \\ \midrule
+Onödiga omsändningar & Långsam felupptäckt \\
+Fler dubbletter & Bussen står still och väntar \\
+Bussen belastas mer när den redan är belastad & Systemet känns hängt \\
+\end{narrowtable}
+
+\subsection{Omsändning}
+
+Vid timeout skickas framen om, med \textbf{samma} \code{SEQ}. Det är avgörande: ett nytt
+sekvensnummer skulle göra omsändningen till ett nytt meddelande, och mottagaren skulle inte kunna
+känna igen den som en upprepning.
+
+Antalet försök måste vara begränsat. En sändare som försöker i all evighet mot en nod som är
+avstängd gör ingenting annat.
+
+\subsection{Dubbletter}
+
+Och här stänger cirkeln. Omsändningen är precis det som skapar dubbletter.
+
+Det farliga fallet är inte att framen tappas --- då hände ingenting --- utan att \textbf{kvittensen}
+tappas:
+
+\begin{console}
+A -> B   StatusRequest, SEQ 0x0007      B tar emot och behandlar den
+B -> A   Ack, SEQ 0x0007                kvittensen tappas
+A        timeout
+A -> B   StatusRequest, SEQ 0x0007      omsändning
+B                                       ...behandlar den en andra gång?
+\end{console}
+
+Ur B:s synvinkel är det två identiska frames. Behandlar den båda har kommandot utförts två gånger,
+och är kommandot "öka börvärdet med ett" blir resultatet fel.
+
+\textbf{Lösningen är att komma ihåg.} Varje nod sparar senast behandlade \code{SEQ} per avsändare.
+Kommer samma \code{SEQ} igen:
+
+\begin{itemize}
+  \item Kör \textbf{inte} applikationslogiken igen.
+  \item Skicka \textbf{ändå} kvittensen igen.
+\end{itemize}
+
+Den andra punkten är den som glöms. Sändaren väntar fortfarande på sin kvittens, och tystnad
+leder bara till ännu en omsändning.
+
+\begin{aside}
+\note Fyra mekanismer, i en kedja där var och en löser problemet den föregående skapade:
+checksumma upptäcker fel, ACK bekräftar leverans, timeout upptäcker utebliven ACK, omsändning
+åtgärdar den --- och dubblettdetektering städar upp efter omsändningen. Ingen av dem går att
+utelämna, och det är därför kedjan är värd att kunna utantill.
+\end{aside}
+
+\subsection{Och sedan gör hårdvaran det åt oss}
+
+Allt i det här avsnittet är kod du skriver, testar och underhåller. Från \kapref{ch:can} ligger
+det mesta av det i kisel: CAN gör ramning, checksumma och kollisionshantering i hårdvara, och
+kvitterar dessutom i en enda bit inuti framen.
+
+Det gör inte kapitlet mindre viktigt. Det gör det till den bakgrund mot vilken CAN går att
+förstå --- och till en del av vad duggan examinerar.

@@ -1,0 +1,19 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item \code{volatile} säger åt kompilatorn att inte optimera bort läsningar av något hårdvaran
+    ändrar. Det är \textbf{inte} en synkroniseringsmekanism.
+  \item \code{volatile} får stå i \textbf{en enda fil}: transportens implementation. Det är vad
+    sömmen i \kapref{ch:byte} köpte.
+  \item Tre inställningar är fällor: pinnmuxen (utan den är ledningarna tysta), slave select
+    disable (utan den lämnar mastern masterläget vid första \code{select()}), och prescalern.
+  \item \code{transfer()} måste \textbf{läsa} dataregistret efter varje överföring. Annars ligger
+    all data en byte fel.
+  \item MVIO låter \code{PORTC} köra på 3,3~V medan kärnan kör på 5~V --- ingen nivåomvandlare.
+    \code{VDDIO2} måste vara matad innan porten gör något.
+  \item Factoryns medlemmar deklareras i konstruktionsordning: transporten före drivrutinen som
+    binder en referens till den.
+  \item Testet på arkitekturen: byt \code{Spi} mot \code{Stub} i factoryn och kompilera för
+    värddatorn. Går det inte har någon rad ovanför interfacet lärt sig för mycket.
+\end{itemize}

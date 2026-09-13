@@ -1,0 +1,21 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item CAN does framing, length, checksum, collision handling and acknowledgement in silicon.
+    What is left for the software is the identifier, the length, the data bytes --- and reading
+    off how it went.
+  \item CAN has \textbf{no destination address}. The identifier describes the content, and every
+    node filters for itself.
+  \item The controller signals with single-cycle pulses. \textbf{The register bank} turns them
+    into sticky bits with an \textbf{explicit clear} --- and that clearing is the driver's
+    responsibility.
+  \item \code{TX_SEND} and \code{RX_ACK} require bit 0 to be set; \code{ERROR_FLAGS} is cleared
+    only by an \emph{all-zero} word. Opposite rules, and a common bug.
+  \item \code{TX_DATA_LO} carries data bytes \textbf{0--3}, with byte 0 in bits 31--24.
+  \item Three limitations reach up into the code: a lost arbitration looks like a successful
+    transmission, the error flag is one bit for four causes, and the receive side does not buffer.
+  \item The hardware validates nothing. The validation lives in the driver, in exactly one place.
+  \item Two seams: \code{Interface} makes the application testable, \code{ByteTransport} makes the
+    driver testable.
+\end{itemize}

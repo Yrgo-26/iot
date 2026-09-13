@@ -1,0 +1,98 @@
+\section{Varför en analysator}
+\label{sec:whyanalyzer}
+
+Fram till nu har varje observation gjorts av en av de två halvorna. Din drivrutin säger att den
+skickade en frame; hårdvarugruppens testbänk säger att kontrollern sände en. Båda kan ha fel på
+samma sätt, eftersom båda är skrivna mot samma dokument av två personer som kan ha läst det lika
+fel.
+
+En \textbf{bussanalysator} är en tredje part som inte tror på någon av er. Den är en riktig
+CAN-kontroller på bussen, och den avkodar det som faktiskt ligger på ledningarna.
+
+Det är därför labben ligger sist och inte först: det är först nu det finns trafik att titta på, och
+det är först nu svaret betyder något.
+
+\begin{aside}
+\note Analysatorn kvitterar dessutom dina frames. Det är värt att veta: en ensam nod på bussen får
+aldrig någon kvittens, och \emph{en fullständig} CAN-kontroller hade då skickat om i all evighet.
+Konstruktionen i den här kursen läser aldrig tillbaka ACK-luckan, så den märker ingenting --- men
+skillnaden blir synlig i tracen så fort analysatorn kopplas in.
+\end{aside}
+
+\section{Att läsa en trace}
+\label{sec:trace}
+
+Ställ in analysatorn på samma bithastighet som konstruktionen, och kontrollera att termineringen
+fortfarande är 120~\textohm{} i vardera änden --- inte tre motstånd för att det nu är tre noder.
+
+Skicka en frame med känt ID och känd nyttolast från din nod, och leta upp den:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Kolumn} & \thead{Vad du kontrollerar} \\ \midrule
+Identifierare & Stämmer den med vad du skrev till \code{TX_ID}? \\
+DLC & Stämmer den med \code{TX_DLC}? \\
+Data & Stämmer bytesen, \emph{och i rätt ordning}? Det är här en förväxling av
+  \code{TX_DATA_LO}/\code{HI} äntligen blir synlig. \\
+Tidsstämpel & Hur ofta kommer de? Stämmer det med hur ofta din kod anropar \code{send()}? \\
+\end{booktable}
+
+Sedan åt andra hållet: skicka en frame \emph{från} analysatorn till din nod. Returnerar
+\code{receive()} \code{true}? Stämmer innehållet? Och --- det som är lätt att glömma --- gick
+\code{STATUS} bit 1 ned när du skrev \code{RX_ACK}?
+
+\section{Att leta efter förenklingarna}
+\label{sec:simplifications}
+
+Konstruktionen är förenklad mot riktig CAN på flera punkter. Några av dem går att se utifrån, och
+det är den intressantaste delen av labben.
+
+\begin{booktable}{@{}lL@{}}
+\thead{Förenkling} & \thead{Vad du kan leta efter} \\ \midrule
+Ingen ACK-återläsning & Koppla bort analysatorn och sänd med bara din nod på bussen. Vad säger
+  felflaggan? Vad \emph{skulle} en riktig nod ha gjort? \\
+Inga felramar & Vad händer om analysatorn skickar en? \\
+Ingen automatisk omsändning & En frame som gick fel skickas inte om av hårdvaran. Syns det? \\
+Ingen mottagningskö & Låt analysatorn skicka två frames tätt. Kommer båda fram till din
+  applikation? \\
+\end{booktable}
+
+\textbf{Att hitta en avvikelse är inte att hitta ett fel.} Uppgiften är att kunna säga \emph{vilken
+dokumenterad förenkling} som förklarar vad du ser --- och vilka avvikelser som \emph{inte} har
+någon sådan förklaring. Det är de senare som är intressanta, för båda klasserna.
+
+\section{Bussbelastning}
+\label{sec:busload}
+
+Analysatorn visar bussbelastningen. Jämför med tidsbudgeten i \kapref{ch:spi}:
+
+\begin{itemize}
+  \item Vad är belastningen med din nod som enda sändare?
+  \item En \code{send()} tar sex SPI-transaktioner, alltså omkring 270~µs. En maximal CAN-frame är
+    omkring 130~µs. \textbf{Vad begränsar dig egentligen --- bussen eller länken?}
+\end{itemize}
+
+Svaret på den sista frågan är hela poängen med att mäta i stället för att anta, och det är det
+enda stället i kursen där du kan se det med egna ögon.
+
+\section{En frame, hela vägen}
+\label{sec:endtoend}
+
+Avsluta med att spåra en enda frame genom hela stacken, och namnge varje lager och vem som byggde
+det:
+
+\begin{console}
+app::EchoNode            -> du
+driver::can::Interface   -> du
+driver::can::Spi         -> du
+driver::can::ByteTransport -> du
+AvrSpiTransport          -> du
+===== fyra ledningar =====
+spi_slave                -> utdelad
+spi_reg_bridge           -> hårdvarugruppen
+register_bank            -> hårdvarugruppen
+can_controller           -> hårdvarugruppen
+===== transceiver =====
+CAN-bussen               -> fysik
+\end{console}
+
+Tio lager, två klasser, ett kontrakt --- och en frame som kom fram.

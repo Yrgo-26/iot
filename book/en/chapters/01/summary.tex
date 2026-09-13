@@ -1,0 +1,18 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item A serial link delivers bytes and nothing else. Where a message begins, how long it is,
+    what it means, whether it arrived intact and who it came from are questions the stream does
+    not answer.
+  \item A \textbf{frame} is a delimited, self-describing unit that answers them. The course's
+    frame has eight fields: SOF, LEN, TYPE, DST, SRC, SEQ, DATA and CHK.
+  \item \textbf{SOF} is two bytes because one byte will sooner or later turn up in the payload.
+    SOF alone is still not enough --- the length and the checksum have to be right as well.
+  \item \textbf{LEN} is needed because the receiver reads one byte at a time and cannot look
+    ahead.
+  \item \textbf{The checksum} gives integrity, not a delivery guarantee. It says that the frame
+    arrived intact, not that it arrived.
+  \item Multi-byte fields are written \textbf{big-endian}, byte by byte with explicit shifts ---
+    never by copying memory.
+\end{itemize}

@@ -1,0 +1,39 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\exercise{Read your own traffic}{Code}
+\label{ex:14:1}
+Send a frame with a known ID and a known payload.
+\begin{enumerate}[a)]
+  \item Find it in the trace. Do the identifier, the DLC and the data match?
+  \item Is the \emph{order} of the data bytes right?
+  \item Which fields do you see in the trace that the register map does \emph{not} expose?
+\end{enumerate}
+
+\exercise{The other way round}{Code}
+\label{ex:14:2}
+Send a frame from the analyser to your node.
+\begin{enumerate}[a)]
+  \item Does \code{receive()} return \code{true}?
+  \item What happened to \code{STATUS} bit 1, before and after your \code{RX_ACK}?
+  \item Send two frames in quick succession. Do both reach the application? Why?
+\end{enumerate}
+
+\exercise{The acknowledgement}{Reasoning}
+\label{ex:14:3}
+\begin{enumerate}[a)]
+  \item Does the analyser acknowledge your frames? How can you tell?
+  \item Disconnect it and transmit with only your node on the bus. What does the error flag say?
+  \item What would a complete CAN controller have done in that situation, and why does this one
+    not?
+\end{enumerate}
+
+\exercise{The bottleneck}{Calculation}
+\label{ex:14:4}
+\begin{enumerate}[a)]
+  \item What is the bus load with your node as the only transmitter?
+  \item How long does a \code{send()} in your driver take, and how long does the frame take on the
+    bus?
+  \item What is limiting you --- the bus or the SPI link? Does the measurement match the
+    calculation in \kapref{ch:spi}?
+\end{enumerate}

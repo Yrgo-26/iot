@@ -1,0 +1,67 @@
+\section*{Chapter 11 --- Testing without hardware}
+\addcontentsline{toc}{section}{Chapter 11 --- Testing without hardware}
+
+\solution{ex:11:1}{Get the suite green}
+The exercise asks for code. The log, on the other hand, is the point: write down what the test
+name said, where the bug was, and how long it took.
+
+What you usually see is that the time falls sharply as the exercise goes on, and the reason is not
+that the bugs get easier but that you stop guessing. The procedure in \secref{sec:debugging} ---
+test name, index, expected value, and \emph{only then} your own code --- is the whole difference.
+
+\solution{ex:11:2}{Which double catches what?}
+\ans{a} \textbf{Scripted.} The recorded bytes end up in the wrong transaction, which shows
+immediately. \code{BankTransport} obediently writes the values into the registers the command byte
+points out and notices nothing.
+\ans{b} \textbf{Both.} Scripted sees that the sent byte is \code{01} where the test expects
+\code{00}; Bank sees that the error bit never goes low.
+\ans{c} \textbf{Bank only.} From the scripted transport's point of view exactly the right bytes
+were sent --- the fault is in what the driver hands back in \code{frame.data}, not in what it
+sent.
+\ans{d} \textbf{Both.} Scripted is missing the \code{RX_ACK} transaction in the recording; Bank
+sees that RX valid stays set and that the next \code{receive()} gives the same frame.
+\ans{e} \textbf{Bank only}, indirectly. Scripted checks what was \emph{sent}, and that byte is
+sent correctly --- the fault is that the answer is assembled wrongly. Bank gives back values that
+do not match what was written, so some read comes out wrong.
+\ans{f} \textbf{Both.} Scripted sees that transactions go out even though the frame is invalid;
+Bank sees that the registers are written.
+\ans{g} \textbf{Neither.} And that is precisely why the row is there: a wiring fault is invisible
+to every test run on the laptop, however good the test double is. That is what \kapref{ch:bringup}
+exists for, and the reason rung 1 of the bring-up ladder is a loopback.
+
+\solution{ex:11:3}{Read the suite as a requirements specification}
+\ans{a} The test case checking the \code{TX_DATA_LO} transaction on a \code{send()} of
+\code{id = 0x123}, \code{dlc = 2}, data \code{AA BB}. Its five \code{EXPECT_EQ} lines are the
+example's five bytes, written as a requirement.
+\ans{b} The case sending a frame with \code{dlc = 9} and checking that the recorded byte stream is
+\emph{empty}, that is, that no transactions went out at all. It checks not only the return value
+but that the validation happens \emph{first}.
+\ans{c} The distribution should lean towards \code{BankTransport} for behaviour and
+\code{ScriptedTransport} for the protocol --- roughly as in the table in \secref{sec:twodoubles}.
+If you see only one of them in the suite, a whole class of bugs is unaccounted for.
+
+\solution{ex:11:4}{The whole stack}
+The exercise asks you to run a test case; the questions are answered here.
+\ans{a} Zero. \code{EchoNode} is unchanged since \kapref{ch:komponent}.
+\ans{b} That \code{EchoNode} depends on \code{driver::can::Interface} and nothing else. Both
+\code{Stub} and \code{Spi} fulfil that contract, so the swap is a single line in the test's
+Arrange part.
+\ans{c} Everything. \code{EchoNode} would have had to include \code{spi.h}, and thereby dragged in
+\code{ByteTransport} and the whole transport layer. The test would have needed a transport just to
+construct the component, and the component test in \kapref{ch:komponent} --- which runs entirely
+without a transport --- could not have been written.
+
+\solution{ex:11:5}{What remains}
+At least these, and the last one is the one usually forgotten:
+
+\begin{itemize}
+  \item That the \textbf{interpretation} of the contract is right. The suite is written by a human
+    who read the same document as you.
+  \item That the \textbf{hardware group} interpreted it the same way. Their testbenches are
+    written against the same document, by somebody else.
+  \item That the \textbf{wiring} is right --- a swapped \code{MOSI}/\code{MISO} is invisible here.
+  \item That the \textbf{time budget} holds. \code{BankTransport} answers immediately.
+  \item That you \textbf{poll often enough} not to lose frames.
+  \item That \code{AvrSpiTransport} works. It is the only class in the project that no automated
+    test covers, since it talks to a physical register.
+\end{itemize}

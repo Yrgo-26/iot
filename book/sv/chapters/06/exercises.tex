@@ -1,0 +1,52 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Förutsäg kompilatorn}{Resonemang}
+\label{ex:6:1}
+Svara först, kompilera sedan.
+\begin{enumerate}[a)]
+  \item Du tar bort \code{virtual} från destruktorn, skapar en \code{Stub} med \code{new} och
+    raderar den genom en \code{Interface*}. Kompilerar det? Vad blir fel?
+  \item Du tar bort \code{[[nodiscard]]} från \code{send()} och skriver
+    \code{driver.send(frame);}. Vad säger kompilatorn, med och utan attributet?
+  \item Du stavar fel på en metod men skriver \code{override}. Och om du utelämnar
+    \code{override}?
+\end{enumerate}
+Fråga c) är skälet till att \code{override} är obligatoriskt i projektet.
+
+\exercise{En metod för mycket}{Resonemang}
+\label{ex:6:2}
+Någon föreslår att lägga till i interfacet:
+\begin{cppcode}
+[[nodiscard]] virtual std::uint32_t readStatusRegister() const noexcept = 0;
+\end{cppcode}
+"Den är praktisk vid felsökning."
+\begin{enumerate}[a)]
+  \item Vad skulle \code{Stub} returnera från den?
+  \item Vad händer med \code{EchoNode} om någon börjar använda den?
+  \item Vad händer den dag registerkartan ändras?
+  \item Var hör metoden i stället hemma?
+\end{enumerate}
+
+\exercise{Polymorfismen}{Kod}
+\label{ex:6:3}
+I den utdelade \code{test_stub.cpp} finns en hjälpfunktion som tar en
+\code{driver::can::Interface&} i stället för en \code{Stub&}.
+\begin{enumerate}[a)]
+  \item Innehåller den ordet \code{Stub} någonstans?
+  \item Varför är den skriven mot interfacet?
+  \item I \kapref{ch:testning} anropas samma funktion med en \code{Spi}. Vad i din kod måste
+    stämma för att det ska gå?
+\end{enumerate}
+
+\exercise{Stubbens gränser}{Resonemang}
+\label{ex:6:4}
+\begin{enumerate}[a)]
+  \item Räkna upp fyra saker stubben inte simulerar.
+  \item Välj en av dem och beskriv hur du skulle kunna lägga till den.
+  \item Vad skulle det kosta? När blir en testdubblare så komplicerad att den själv behöver
+    testas?
+\end{enumerate}

@@ -1,0 +1,49 @@
+\section*{Kapitel 14 --- Bussanalys}
+\addcontentsline{toc}{section}{Kapitel 14 --- Bussanalys}
+
+\solution{ex:14:1}{Läs din egen trafik}
+Uppgiften ber om mätning; frågorna besvaras här.
+\ans{a} De ska stämma exakt med vad du skrev till \code{TX_ID}, \code{TX_DLC} och dataregistren.
+Gör de inte det ligger felet i packningen, inte i överföringen --- analysatorn avkodar det som
+faktiskt ligger på ledningarna.
+\ans{b} Ordningen är det analysatorn tillför. En förväxling av \code{TX_DATA_LO} och
+\code{TX_DATA_HI} ger en frame med rätt identifierare och rätt längd men fel byteordning, och det
+är först här den blir synlig: alla tester på laptopen kan ha varit gröna om testet gjorde samma
+fel som koden.
+\ans{c} Bland annat SOF, RTR, IDE, r0, CRC-fältet, ACK-luckan och EOF. Registerkartan exponerar
+bara identifierare, DLC och data --- resten sköter kontrollern, och analysatorn är det enda stället
+där du ser dem.
+
+\solution{ex:14:2}{Åt andra hållet}
+Uppgiften ber om mätning; frågorna besvaras här.
+\ans{a} Ja, om RX-giltig sattes och du läste registren. Gör den inte det: kontrollera att
+identifieraren är en din nod tar emot, och att bithastigheten är densamma i analysatorn.
+\ans{b} Bit 1 ska gå hög när framen tas emot och låg först när du skriver \code{0x1} till
+\code{RX_ACK}. Står den kvar har kvittensen inte gått igenom --- kontrollera att bit 0 verkligen är
+satt i det skrivna ordet.
+\ans{c} Den andra framen skriver över den första om du inte hunnit kvittera den. Kontrollern
+håller exakt en mottagen frame, och den nyaste vinner; det är dokumenterat och avsiktligt. Med en
+\code{receive()} som tar omkring 270~µs och frames som tar 130~µs hinner du inte.
+
+\solution{ex:14:3}{Kvittensen}
+\ans{a} Ja. Analysatorn är en riktig CAN-kontroller och drar ned ACK-luckan på varje frame den tar
+emot med korrekt CRC. I tracen syns det som att framen registreras utan kvittensfel.
+\ans{b} Felflaggan förblir \emph{orörd}. Den här konstruktionen läser aldrig tillbaka ACK-luckan,
+så den kan inte upptäcka att ingen kvitterade --- sändningen fullbordas precis som om allt gått
+bra.
+\ans{c} En fullständig CAN-kontroller hade upptäckt kvittensfelet, ökat sin sändarfelräknare och
+\textbf{skickat om framen}, om och om igen tills någon svarade eller räknaren nådde bus off. En
+ensam nod på en riktig CAN-buss sänder alltså samma frame i all oändlighet. Den här kontrollern
+gör det inte, därför att den saknar både ACK-återläsning och automatisk omsändning --- två av de
+dokumenterade förenklingarna.
+
+\solution{ex:14:4}{Flaskhalsen}
+\ans{a} Beror på hur ofta din applikation anropar \code{send()}. Med en frame per varv i en tät
+loop blir belastningen låg i CAN-mått --- några procent --- eftersom SPI-länken bromsar dig långt
+innan bussen blir full.
+\ans{b} En \code{send()} är sex SPI-transaktioner à omkring 45~µs, alltså cirka \textbf{270~µs}.
+En maximal CAN-frame är omkring 130 bitar, alltså cirka \textbf{130~µs} vid 1~Mbit/s.
+\ans{c} \textbf{SPI-länken.} Den tar ungefär dubbelt så lång tid som framen den skickar, så
+CAN-bussen står och väntar på dig. Det stämmer med räkningen i \secref{sec:timing} --- och det
+är här du kan se med egna ögon att den stämde, vilket är skälet till att kapitlet ber dig mäta
+i stället för att lita på tabellen.

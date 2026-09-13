@@ -1,0 +1,47 @@
+\section{Bussen och routingen}
+\label{sec:bus}
+
+Två noder kan kopplas direkt till varandra. Fem kan inte --- det blir tio förbindelser, och antalet
+växer kvadratiskt. Lösningen är en \textbf{delad buss}: alla noder på samma ledning.
+
+Det får en omedelbar konsekvens: \textbf{alla hör allt}. En buss är broadcast, och det är inget man
+väljer bort. Vill man att ett meddelande ska nå en viss nod får man skriva det i meddelandet.
+
+\subsection{Var routingen ligger}
+
+Bussens enda jobb är att leverera varje byte till varje nod. Den läser inte adresser, den känner
+inte till frames, den vet inte ens att det finns ett protokoll.
+
+\textbf{Routingen ligger i noden.} Varje nod tar emot varje byte, matar den till sin parser, och
+när en komplett frame extraherats jämför den framens \code{DST} med sin egen adress:
+
+\begin{cppcode}
+void Node::tick() noexcept
+{
+    if (!myParser.isFrameReady()) { return; }
+
+    Frame frame{};
+    if (!myParser.extractFrame(frame)) { myParser.reset(); return; }
+    myParser.reset();
+
+    if (frame.dstAddr != myAddr) { return; }   // not for us
+    handleFrame(frame);
+}
+\end{cppcode}
+
+Att lägga routingen i noden i stället för i bussen är inte en förenkling för kursens skull. Det är
+hur en riktig buss fungerar: ledningen kan inte läsa adresser.
+
+\subsection{DST och SRC}
+
+\code{DST} säger vem framen är till. \code{SRC} säger vem den kom från, och behövs för att
+mottagaren ska kunna svara --- utan den vet den inte vart svaret ska.
+
+\code{SEQ} parar ihop svar med fråga. En nod som skickat tre förfrågningar och får ett svar måste
+kunna avgöra vilken av dem det svarar på.
+
+\begin{aside}
+\note CAN gör det här helt annorlunda: där finns ingen destinationsadress alls, och
+identifieraren beskriver meddelandets \emph{innehåll} i stället för dess mottagare. Jämförelsen
+görs i \kapref{ch:can}, och den är en av kursens mest lärorika.
+\end{aside}

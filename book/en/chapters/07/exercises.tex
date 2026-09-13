@@ -1,0 +1,48 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Write the bug, watch the test catch it}{Code}
+\label{ex:7:1}
+Temporarily change \code{run()} so that it calls \code{receive()} twice.
+\begin{enumerate}[a)]
+  \item Which test cases fail, and which are still green?
+  \item Run only the unit tests for \code{Stub} and \code{Frame}. Does any of them fail?
+  \item Write down in two sentences what the exercise showed.
+\end{enumerate}
+
+\exercise{The layer boundary}{Reasoning}
+\label{ex:7:2}
+Does the line break the architecture's layer boundary? Justify in one sentence.
+\begin{enumerate}[a)]
+  \item \code{#include "driver/can/interface.hpp"} in \code{echo_node.hpp}.
+  \item \code{#include "driver/can/stub.hpp"} in \code{test_echo_node.cpp}.
+  \item \code{#include "driver/can/stub.hpp"} in \code{echo_node.cpp}.
+  \item \code{if (myDriver.hasError()) { myDriver.clearError(); }} in \code{run()}.
+  \item \code{static_cast<driver::can::Spi&>(myDriver).readReg(0U);} in \code{run()}.
+\end{enumerate}
+Line d) breaks no boundary --- but is it a good idea? Who ought to handle errors?
+
+\exercise{Ownership}{Reasoning}
+\label{ex:7:3}
+\begin{enumerate}[a)]
+  \item What happens if you swap \code{driver::can::Interface& myDriver} for
+    \code{driver::can::Interface myDriver}? What does the compiler say, and why?
+  \item What happens if you create an \code{EchoNode} with a \code{Stub} that goes out of scope
+    before \code{run()} is called? Does it compile?
+  \item Why is the driver a reference and not a \code{std::unique_ptr}?
+\end{enumerate}
+
+\exercise{Read the suite}{Reasoning}
+\label{ex:7:4}
+Open the supplied \code{test_echo_node.cpp}.
+\begin{enumerate}[a)]
+  \item Which case would still be green if \code{run()} forgot to increment the counter?
+  \item How does the test get a frame in, and how does it read the echoed one back? Why are those
+    methods not in \code{Interface}?
+  \item Which requirement does the case that calls \code{run()} twice on one injected frame
+    express?
+\end{enumerate}

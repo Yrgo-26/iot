@@ -1,0 +1,16 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item \code{Frame} är en \textbf{aggregate}: ingen konstruktor, ingen destruktor, inga metoder.
+    Det håller aggregate-initieringen läsbar och gör klassen till ren data.
+  \item \code{MaxDataLen} är \code{static constexpr} --- typ, räckvidd, synlig i debuggern, och
+    samma tal som arrayens storlek.
+  \item \code{isValid()} är en fri funktion, och regeln uttrycks \textbf{en gång}. Hårdvaran
+    validerar inget, så drivrutinen måste --- och bara den.
+  \item Du skriver inga tester i kursen. Du kör dem, läser dem och får dem att passera.
+  \item Testning avgör kursen därför att hårdvaran varken finns eller är din förrän näst sist.
+  \item Läs ett fallerande testfall i ordningen testnamn $\rightarrow$ Arrange $\rightarrow$
+    Assert, och öppna din egen kod sist.
+  \item Testsviten är oftare en exaktare kravspecifikation än prosan.
+\end{itemize}

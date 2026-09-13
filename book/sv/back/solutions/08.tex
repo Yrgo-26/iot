@@ -1,0 +1,71 @@
+\section*{Kapitel 8 --- SPI och transaktionsprotokollet}
+\addcontentsline{toc}{section}{Kapitel 8 --- SPI och transaktionsprotokollet}
+
+\solution{ex:8:1}{Avkoda}
+Kommandobyten är \code{W} i bit 7, nollor i bitarna 6--4, och registerindexet i bitarna 3--0.
+\ans{a} \code{0x81} = skrivbit satt, index 1: en \textbf{skrivning till \code{TX_ID}} med värdet
+\code{0x000007FF} --- elva bitar ettor, alltså det största värde registret kan hålla.
+\ans{b} \code{0x85} = skrivning, index 5: en \textbf{skrivning till \code{TX_SEND}} med
+\code{0x1}, som \emph{utlöser en sändning}. Registret lagrar ingenting.
+\ans{c} \code{0x8B} = skrivning, index 11: en \textbf{skrivning till \code{ERROR_FLAGS}} med
+\code{0x0}, som nollställer felbiten.
+\ans{d} \code{0xC2} är \code{1100 0010}: skrivbiten satt, men \emph{också} bit 6, som är
+reserverad och måste vara noll. Kommandot är ogiltigt --- ingen skrivning verkställs, ingen
+läsning låses --- och slaven konsumerar ändå alla fem bytes innan den återgår till vila.
+
+De två ovanliga är \textbf{c} och \textbf{d}. I c nollställer man genom att skriva \emph{noll},
+vilket är motsatt regel mot \code{TX_SEND} och \code{RX_ACK} som kräver bit 0 satt. I d är
+kommandot ogiltigt och slaven rapporterar det \emph{inte}: det finns ingen felkanal på det här
+lagret, så en drivrutin som skickar skräp får tyst nonsens tillbaka.
+
+\solution{ex:8:2}{Koda}
+\ans{a} Läsning har bit 7 låg, så kommandobyten är bara indexet; \code{RX_DLC} har index 7 och de
+fyra databyten är dummybytes: \code{07 00 00 00 00}
+\ans{b} \code{82 00 00 00 04}
+\ans{c} \code{85 00 00 00 01}
+\ans{d} \code{8A 00 00 00 01}
+\ans{e} \code{8B 00 00 00 00}
+
+Skillnaden mellan d och e är regeln för vad som räknas som en giltig skrivning. \code{RX_ACK}
+kräver att \textbf{bit 0 är satt} --- en nolla gör ingenting. \code{ERROR_FLAGS} kräver att
+\textbf{hela ordet är noll} --- \code{0x1} gör ingenting. Två register bredvid varandra i samma
+karta, med motsatta regler, och att blanda ihop dem är en av projektets vanligaste buggar.
+
+\solution{ex:8:3}{Vad kommer tillbaka}
+\ans{a} Ingen. Under en skrivning är allt slaven driver på \code{MISO} meningslöst.
+\ans{b} Fyra: de sista fyra. Byten som klockas in \emph{under kommandobyten} är rester från förra
+gången, eftersom slaven laddar sin svarsskiftare först i slutet av kommandobyten.
+\ans{c} Returvärdet blir skiftat en byte: den första riktiga databyten hamnar i bitarna 23--16
+i stället för 31--24, och den sista databyten faller bort helt. I felsökningen ser det ut som att
+varje registervärde är $256$ gånger för litet, eller --- för \code{STATUS} --- som att biten man
+letar efter aldrig sätts. Det är samma symptom som när \code{SPI0.DATA} inte läses i
+\code{transfer()}, vilket gör de två lätta att förväxla.
+
+\solution{ex:8:4}{\texorpdfstring{\code{SS}}{SS} och avbrott}
+\ans{a} Transaktionen överges helt, utan sidoeffekter: \code{TX_ID} ändras inte, ingen trigger
+går, och slaven återgår till vila redo för nästa fallande \code{SS}-flank. Det är vad som gör
+slaven självläkande efter en glitch.
+\ans{b} Slaven tar de fem första byten som en transaktion och \textbf{kastar de fem följande}. En
+transaktion börjar bara på den första byten efter att \code{SS} fallit, så den sjätte byten
+tolkas aldrig som en ny kommandobyte.
+
+Det farliga är att det misslyckas \emph{tyst}. Vid bring-upen ser det ut som att varannan
+registerskrivning försvinner: den första kommer fram, den andra inte, och ingenting rapporterar
+fel. Man misstänker kopplingen, klockfrekvensen och drivrutinens bitpackning --- långt innan man
+misstänker \code{SS}.
+\ans{c} \code{0x91} är \code{1001 0001}: skrivbiten satt, index 1, men bit 4 är satt och
+reserverad. Kommandot är ogiltigt och ignoreras helt. Det ska förhindras redan när kommandobyten
+byggs: \code{CmdWrite | index} med ett index i intervallet 0--12 kan aldrig sätta bitarna 6--4,
+vilket är skälet till att indexet är en namngiven konstant och inte ett tal från en beräkning.
+
+\solution{ex:8:5}{Tidsbudget}
+\ans{a} Sex transaktioner --- \code{STATUS}, \code{RX_ID}, \code{RX_DLC}, två dataregister och
+\code{RX_ACK} --- alltså omkring $6 \times 45 = 270$~µs.
+\ans{b} En maximal frame är omkring 130 bitar, alltså cirka \textbf{130~µs} vid 1~Mbit/s.
+\ans{c} De skriver över den föregående. Kontrollern håller exakt en mottagen frame, och den nyaste
+vinner.
+
+Det är \textbf{inte} din bugg: det är hårdvarans dokumenterade begränsning, och den är avsiktlig.
+Du kan minska risken genom att polla ofta och inte göra något långsamt mellan anropen, men du kan
+inte komma förbi att en \code{receive()} tar dubbelt så lång tid som framen den hämtar. Vid
+tillräcklig trafikintensitet tappas frames oavsett vad drivrutinen gör.

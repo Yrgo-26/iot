@@ -1,0 +1,20 @@
+\chapter{Frames}
+\label{ch:frames}
+
+\lecture{Lecture 1}{A protocol of your own}
+
+{\large\itshape Why a byte stream is not communication, and what has to be added.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item What a communication protocol is, and which problem it solves.
+  \item Why an unstructured byte stream cannot be interpreted.
+  \item The fields of the frame: SOF, LEN, TYPE, DST, SRC, SEQ, DATA and CHK.
+  \item Serialisation and deserialisation, and endianness as a source of bugs.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/01/stream}
+\input{chapters/01/frame}
+\input{chapters/01/summary}
+\input{chapters/01/exercises}

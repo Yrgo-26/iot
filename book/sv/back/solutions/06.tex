@@ -1,0 +1,56 @@
+\section*{Kapitel 6 --- Interfacet och stubben}
+\addcontentsline{toc}{section}{Kapitel 6 --- Interfacet och stubben}
+
+\solution{ex:6:1}{Förutsäg kompilatorn}
+\ans{a} Det kompilerar utan minsta invändning, och det är hela problemet. Utan \code{virtual}
+bestäms vilken destruktor som anropas av pekarens \emph{statiska} typ, alltså \code{Interface}.
+\code{Stub}s destruktor körs aldrig, dess medlemmar destrueras aldrig, och standarden kallar det
+odefinierat beteende. För \code{Stub} märks det inte --- den äger ingenting --- men för en klass
+som håller en resurs läcker den, tyst, vid varje radering. Inget test fångar det.
+\ans{b} Utan attributet är \code{driver.send(frame);} en fullt laglig sats som kompilatorn inte
+har någon anledning att klaga på. Med \code{[[nodiscard]]} blir den en varning, och med
+\code{-Werror} ett fel. Det förvandlar den vanligaste drivrutinsbuggen --- att tro att en frame
+gick iväg när hårdvaran var upptagen --- från en felsökningssession till en kompilering som
+stannar.
+\ans{c} Med \code{override} är felstavningen ett kompileringsfel: det finns ingen virtuell metod
+med det namnet att överskugga. Utan \code{override} kompilerar det, och du har i stället
+\emph{lagt till} en ny metod. Basklassens rena virtuella metod är då fortfarande oimplementerad,
+så klassen förblir abstrakt --- och felmeddelandet du får handlar om att typen inte går att
+instansiera, långt ifrån den felstavade raden. Det är därför \code{override} är obligatoriskt.
+
+\solution{ex:6:2}{En metod för mycket}
+\ans{a} Ingenting meningsfullt. Stubben har inga register; den skulle behöva returnera en påhittad
+konstant, alltså ljuga.
+\ans{b} \code{EchoNode} blir bunden till att hårdvaran \emph{har} register. Testet på om en metod
+hör hemma i interfacet är just detta: kan båda implementationerna uppfylla den ärligt? Kan de inte
+det, hör den inte hemma där.
+\ans{c} Varje anropare måste ändras, eftersom bitarnas betydelse är en del av registerkartan och
+inte av interfacet. Interfacet skulle alltså ärva hårdvarans versioner, vilket är precis vad det
+finns för att undvika.
+\ans{d} I \code{Spi}, som privat hjälpfunktion --- eller, för felsökning, i en separat
+\code{PrintTransport} under \code{ByteTransport}-sömmen, där den inte syns för någon ovanför.
+
+\solution{ex:6:3}{Polymorfismen}
+Uppgiften ber inte om kod; frågorna besvaras här.
+\ans{a} Nej. Funktionen tar en \code{driver::can::Interface\&} och använder bara interfacets fyra
+metoder.
+\ans{b} Därför att den då kan köras mot vilken implementation som helst. Skriven mot \code{Stub}
+hade den varit ett test av \code{Stub}; skriven mot interfacet är den ett test av
+\emph{kontraktet}, och kontraktet är det både \code{Stub} och \code{Spi} lovar.
+\ans{c} Att \code{Spi} verkligen uppfyller samma kontrakt: samma returvärden i samma situationer.
+Framför allt måste \code{send()} returnera \code{false} när hårdvaran är upptagen och
+\code{receive()} returnera \code{false} när ingen frame finns --- annars går funktionen igenom för
+stubben och fallerar för drivrutinen.
+
+\solution{ex:6:4}{Stubbens gränser}
+\ans{a} Fel (\code{hasError()} är alltid \code{false}), upptagen hårdvara (\code{send()} lyckas
+alltid), kö (en andra \code{send()} skriver över den första), och allt CAN gör: arbitrering, CRC,
+bitstoppning.
+\ans{b} Till exempel upptagen hårdvara: en räknare som får nästa \code{send()} att returnera
+\code{false}, satt av en testmetod. Det är den enklaste, eftersom den inte kräver något nytt
+tillstånd utöver en flagga.
+\ans{c} Varje simulerat beteende är kod som kan vara fel. En stubb som simulerar kö, fel och
+timing är en andra implementation av hårdvaran --- och då vet du inte längre om ett fallerande test
+beror på drivrutinen eller på stubben. Gränsen går ungefär där stubben skulle behöva ett eget
+testfall: behöver den det, hör beteendet hemma i en riktigare dubblare, som
+\code{BankTransport} i \kapref{ch:testning}.

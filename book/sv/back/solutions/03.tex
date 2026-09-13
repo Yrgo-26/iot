@@ -1,0 +1,49 @@
+\section*{Kapitel 3 --- Bussar, routing och tillförlitlighet}
+\addcontentsline{toc}{section}{Kapitel 3 --- Bussar, routing och tillförlitlighet}
+
+\solution{ex:3:1}{Routing}
+\ans{a} I noden. En fysisk ledning levererar spänningsnivåer; den kan varken läsa adresser eller
+veta att det finns frames. Varje nod måste därför själv jämföra \code{DST} med sin egen adress.
+\ans{b} Ignorera den. Framen är inte felaktig --- den är adresserad till någon annan.
+\ans{c} Därför att \code{Nack} betyder \emph{något gick fel}. På en buss med $n$ noder skulle varje
+frame utlösa $n-2$ falska negativa kvittenser, och sändaren skulle inte kunna skilja dem från ett
+verkligt fel.
+
+\solution{ex:3:2}{Felmodellen}
+\ans{a} \textbf{Tappad byte:} nej --- alla följande fält förskjuts, och \code{LEN} läses ur fel
+byte. \textbf{Ändrad bit:} ja --- strukturen är intakt, bara innehållet är fel.
+\textbf{Fördröjning:} ja --- ingenting i framen påverkas.
+\ans{b} De två första fångas av checksumman, i \code{deserialize()}. Den tredje ska inte fångas
+av något, eftersom ingenting är fel.
+\ans{c} Efter en tappad byte eller en ändrad bit står parsern kvar med en förkastad frame och
+måste nollställas; efter en fördröjning står den där den ska.
+
+Fördröjningen ska alltså inte orsaka något problem. Gör den ändå det har parsern ett dolt
+tidsberoende --- den antar något om \emph{när} bytes kommer --- och det är en bugg som inte visar
+sig förrän systemet flyttas till långsammare hårdvara.
+
+\solution{ex:3:3}{Förlorad kvittens}
+\ans{a} A får ingen \code{Ack}, timern löper ut, och A skickar om framen med \textbf{samma}
+\code{SEQ}.
+\ans{b} B ser en frame den redan behandlat: samma avsändare, samma sekvensnummer.
+\ans{c} B ska \textbf{skicka \code{Ack} igen} och \textbf{inte} köra applikationslogiken en andra
+gång. Kommandot är redan utfört.
+\ans{d} A hade fått timeout igen och skickat om igen, i en cykel som bara bryts av att
+försöksräknaren tar slut. Det är därför den uteblivna kvittensen är det farliga felet, inte den
+uteblivna framen.
+
+\solution{ex:3:4}{Timeout-värdet}
+\ans{a} Onödiga omsändningar och därmed fler dubbletter, plus ökad bussbelastning precis när
+bussen redan är belastad.
+\ans{b} Långsam felupptäckt: systemet står och väntar på ett svar som aldrig kommer, och
+upplevs som hängt.
+\ans{c} Värstafallstiden för en tur och retur: sändningstid, mottagarens behandlingstid och
+kvittensens väg tillbaka. En nod känner sällan till den, eftersom den beror på hela systemets
+belastning och på hur snabb den andra noden är --- vilket är just det som varierar.
+
+\solution{ex:3:5}{Kedjan}
+\textbf{Checksumma} upptäcker att en frame är trasig, men säger inget om frames som aldrig kom
+fram. \textbf{ACK} bekräftar leverans, men hjälper inte när kvittensen själv uteblir.
+\textbf{Timeout} upptäcker den uteblivna kvittensen, men gör inget åt den. \textbf{Omsändning}
+åtgärdar den, och skapar därmed dubbletter. \textbf{Dubblettdetektering} städar upp efter
+omsändningen, och skapar inget nytt problem --- det är därför kedjan slutar där.

@@ -1,0 +1,20 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item CAN gör ramning, längd, checksumma, kollisionshantering och kvittens i kisel. Det som
+    återstår för mjukvaran är identifierare, längd, databytes --- och att läsa av hur det gick.
+  \item CAN har \textbf{ingen destinationsadress}. Identifieraren beskriver innehållet, och varje
+    nod filtrerar själv.
+  \item Kontrollern signalerar med encykelspulser. \textbf{Registerbanken} gör om dem till
+    klibbiga bitar med \textbf{uttrycklig nollställning} --- och den nollställningen är
+    drivrutinens ansvar.
+  \item \code{TX_SEND} och \code{RX_ACK} kräver bit 0 satt; \code{ERROR_FLAGS} nollställs bara av
+    ett \emph{helt nollställt} ord. Motsatta regler, och en vanlig bugg.
+  \item \code{TX_DATA_LO} bär databyte \textbf{0--3}, med byte 0 i bitarna 31--24.
+  \item Tre begränsningar når upp i koden: en förlorad arbitrering ser ut som en lyckad sändning,
+    felflaggan är en bit för fyra orsaker, och mottagarsidan buffrar inte.
+  \item Hårdvaran validerar ingenting. Valideringen ligger i drivrutinen, på exakt ett ställe.
+  \item Två sömmar: \code{Interface} gör applikationen testbar, \code{ByteTransport} gör
+    drivrutinen testbar.
+\end{itemize}

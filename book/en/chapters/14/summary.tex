@@ -1,0 +1,15 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item A bus analyser is a \textbf{third party that believes neither half}. Until now every
+    observation has been made by one of them, and both may have misread the contract identically.
+  \item The analyser acknowledges your frames. A lone node never gets an acknowledgement --- and
+    this design does not even notice that, since it never reads the ACK slot back.
+  \item In the trace a swap of \code{TX_DATA_LO}/\code{HI} finally becomes visible, because it
+    gives a frame that arrives with the right length and the wrong order.
+  \item Finding a discrepancy is not the same as finding a fault. The task is to connect it to a
+    documented simplification --- or to establish that it has no explanation.
+  \item A \code{send()} takes longer than the frame it sends. The SPI link is the bottleneck, not
+    the CAN bus, and here you can measure it.
+\end{itemize}

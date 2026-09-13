@@ -1,0 +1,90 @@
+\section{Testpyramiden och de utdelade sviterna}
+\label{sec:pyramid}
+
+\subsection{Du skriver inga tester}
+
+Varje testsvit i den här kursen är \textbf{utdelad}. Ditt jobb är att köra dem, läsa dem när de
+fallerar, och få dem att passera.
+
+Det är ett medvetet upplägg. Att skriva bra tester är ett eget hantverk, och det kommer i en senare
+kurs. Här får du i stället se vad tester är \emph{till för}, på ett projekt där de gör verklig
+nytta --- och den som har sett en testsvit hitta en bugg i sin egen kod har en betydligt
+konkretare bild av vad ett bra test är än den som ombeds skriva ett först.
+
+\subsection{Varför testning avgör den här kursen}
+
+I tidigare projekt gick det att köra programmet och titta. Här går det inte:
+
+\begin{itemize}
+  \item \textbf{Hårdvaran finns inte än.} Den byggs parallellt. Första gången du kan köra mot den
+    är \kapref{ch:bringup}, tredje passet från slutet.
+  \item \textbf{Hårdvaran är inte din.} När den finns felsöks den samtidigt av någon annan. En
+    bugg kan ligga i din kod, i deras VHDL, eller i en kopplingstråd.
+  \item \textbf{Det mesta går att köra utan hårdvara.} Det är ingen tröstpremie utan en
+    designkonsekvens: sömmarna i \kapref{ch:can} finns just för det.
+\end{itemize}
+
+\textbf{Regeln: allt som kan köras på laptopen ska vara grönt innan det körs på hårdvara.}
+Bring-upen ska leta efter kopplingsfel, inte efter bitpackningsfel.
+
+\subsection{Pyramidens tre nivåer}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Nivå} & \thead{Var} & \thead{Vad} \\ \midrule
+Enhetstest & \kapref{ch:frameklassen}, \kapref{ch:interface} & En klass i taget: \code{Frame},
+  \code{Stub}. \\
+Komponenttest & \kapref{ch:komponent}, \kapref{ch:testning} & Flera delar ihop, utan hårdvara:
+  \code{EchoNode} genom stubben; \code{Spi} mot en simulerad registerbank. \\
+Integrationstest & \kapref{ch:bringup}, \kapref{ch:analys} & Riktig hårdvara, riktiga ledningar. \\
+\end{booktable}
+
+Bredden är en rekommendation om \emph{antal}: många snabba tester längst ned, få dyra längst upp.
+Ett projekt med tre snabba tester och en person som kopplar om sladdar är pyramiden upp och ned.
+
+\subsection{Att läsa ett testfall}
+
+Varje utdelat testfall har tre delar:
+
+\begin{cppcode}
+TEST(Frame, isValidRejectsTooLargeDlc)
+{
+    // Arrange.
+    driver::can::Frame frame{};
+    frame.dlc = 9U;
+
+    // Act & Assert.
+    EXPECT_FALSE(driver::can::isValid(frame));
+}
+\end{cppcode}
+
+Arrange säger vilket utgångsläge kravet gäller i, Act säger vad som ska hända, och
+\textbf{Assert är kravet}.
+
+Lägg också märke till värdena: \code{8} och \code{9}, \code{0x7FF} och \code{0x800}. Inte
+\code{4} och \code{0x400}. \textbf{Buggar bor på gränserna} --- en jämförelse som ska vara
+\code{<=} men skrevs \code{<} fungerar för varenda värde utom ett.
+
+\subsection{Att läsa en fallerande svit}
+
+\begin{console}
+FAILED: EXPECT_EQ(frame.data[0], 0xAAU) at test_frame.cpp:42
+\end{console}
+
+Arbetsgången, och \textbf{utan att öppna din egen kod i steg 1--3}:
+
+\begin{enumerate}
+  \item Läs \textbf{testnamnet}. Det säger vilket krav som är brutet.
+  \item Läs \textbf{Arrange}. Den säger under vilka förutsättningar.
+  \item Läs \textbf{Assert-raden} som fallerade. Den säger vad som förväntades.
+  \item Först därefter: öppna din kod.
+\end{enumerate}
+
+Steg 1--3 tar en minut och gör steg 4 kort. Att hoppa direkt till steg 4 är den vanligaste
+anledningen till att en enkel bugg tar en timme.
+
+\begin{aside}
+\note Den utdelade testsviten är ofta en \textbf{mer exakt kravspecifikation} än prosan i
+projektbeskrivningen. Prosan är skriven av en människa och kan vara tvetydig; sviten kompilerar
+och kör. Undrar du exakt vad en metod ska returnera i ett gränsfall: öppna testfilen innan du
+gissar.
+\end{aside}

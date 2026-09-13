@@ -1,0 +1,59 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+Pen and paper. The solutions are in \hyperref[ch:losningar]{appendix~A}.
+
+\exercise{Decode}{Decoding}
+\label{ex:8:1}
+The following bytes go out on \code{MOSI}. For each one: read or write, which register, and which
+value?
+\begin{console}
+a)  81 00 00 07 FF
+b)  85 00 00 00 01
+c)  8B 00 00 00 00
+d)  C2 00 00 00 03
+\end{console}
+Two of them are unusual, each in its own way. Which, and why?
+
+\exercise{Encode}{Calculation}
+\label{ex:8:2}
+Write out the complete five-byte transaction for each of the following:
+\begin{enumerate}[a)]
+  \item Read \code{RX_DLC}.
+  \item Write \code{TX_DLC = 4}.
+  \item Trigger a transmission.
+  \item Acknowledge a received frame.
+  \item Clear the error register.
+\end{enumerate}
+Note the difference between d) and e) in particular.
+
+\exercise{What comes back}{Reasoning}
+\label{ex:8:3}
+\begin{enumerate}[a)]
+  \item During a write the master clocks in five bytes on \code{MISO}. How many of them mean
+    anything?
+  \item During a read of \code{STATUS}, how many of the five mean anything, and which?
+  \item A driver assembles the return value from \emph{all five} received bytes instead of the
+    last four. What happens, and what would it look like while debugging?
+\end{enumerate}
+
+\exercise{\texorpdfstring{\code{SS}}{SS} and aborts}{Reasoning}
+\label{ex:8:4}
+What happens in each of the cases?
+\begin{enumerate}[a)]
+  \item \code{SS} goes high after three of five bytes in a write to \code{TX_ID}.
+  \item The master holds \code{SS} low and sends ten bytes in a row:
+    \code{81 00 00 01 23 82 00 00 00 02}.
+  \item The master sends the command byte \code{0x91}.
+\end{enumerate}
+Case b) is the dangerous one. Why, and what would the symptom look like at bring-up?
+
+\exercise{Time budget}{Calculation}
+\label{ex:8:5}
+At 1~MHz \code{SCK}:
+\begin{enumerate}[a)]
+  \item How long does a \code{receive()} that finds a frame take?
+  \item How long does a maximal CAN frame on the bus take at 1~Mbit/s?
+  \item Another node sends frames as fast as it can. What happens to the ones that arrive while
+    your \code{receive()} is running? Is that your bug?
+\end{enumerate}

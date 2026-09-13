@@ -1,0 +1,71 @@
+\section{Robustness}
+\label{sec:robust}
+
+A parser that only works when everything goes right is not a parser. Three cases have to be
+handled, and all three happen for real.
+
+\subsection{Junk before SOF}
+
+The node is connected in the middle of an ongoing transfer, or a disturbance adds bytes. The
+stream looks like this:
+
+\begin{console}
+32 74 00 FF A5 F7 03 03 25 17 7F 05 10 20 30 02 C2
+|---------| |-------------------------------------|
+   junk                    the frame
+\end{console}
+
+The solution falls out of the state machine for free: in \code{WaitForSof1}, every byte that is
+not \code{0xA5} is discarded. The parser stands still until the stream starts to look like a
+frame.
+
+One case is worth thinking through in particular: the parser is in \code{WaitForSof2} and gets a
+byte that is not \code{0xF7}. The naive answer is to go back to \code{WaitForSof1} and discard the
+byte. But if the byte was \code{0xA5}, you have just discarded the start of a real frame. The
+right answer is to stay in \code{WaitForSof2}: the byte you just saw may be the first of the new
+frame.
+
+\subsection{Dropped bytes}
+
+A byte disappears. Every following field is then shifted by one step, the length field reads a
+data byte as the length, and the parser waits for the wrong number of bytes.
+
+There is no elegant rescue, and there should not be one: the frame \emph{is} lost. The point is
+that the parser should detect it and get back to a known state, not that it should guess. The
+checksum fails, \code{extractFrame()} returns \code{false}, the caller calls \code{reset()}, and
+the next \code{0xA5F7} in the stream starts over.
+
+\subsection{An implausible length}
+
+This is the case that is easy to miss, and the only one in the chapter that is a security bug
+rather than mere error handling.
+
+The length field is one byte and can therefore be up to 255. The parser's buffer holds
+\code{MaxPayloadLen} bytes. If the parser receives a length greater than that, and then
+obediently writes in that many data bytes, it writes past the end of its own buffer.
+
+\begin{cppcode}
+case State::WaitForLen:
+{
+    // Reject a length the buffer cannot hold, else the payload would overflow myBuf.
+    if (MaxPayloadLen < byte) { return reportParseError(); }
+
+    myBuf[myParsedBytes++] = byte;
+    myState                = State::WaitForType;
+    break;
+}
+\end{cppcode}
+
+\begin{aside}
+\note[Rule] Every length that comes from outside is to be checked against the size of the buffer
+\emph{before} it is used, not after. The rule holds everywhere in this book, and it holds for
+\code{TX_DLC} in \kapref{ch:driver} for exactly the same reason.
+\end{aside}
+
+\subsection{Two frames in a row}
+
+When a frame is complete and extracted, the parser has to be reset before the next one can be
+received. Forget that, and it stays in \code{Ready} and discards every new byte.
+
+That is why \code{reset()} is in the public interface, and that is why the node in
+\kapref{ch:bussar} calls it after every extracted frame.

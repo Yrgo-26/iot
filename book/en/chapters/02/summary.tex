@@ -1,0 +1,18 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item Data arrives one byte at a time. Reception therefore has to be incremental, and a state
+    machine with one state per field is the natural way to do it.
+  \item \textbf{Framing and validation are two questions.} \code{isFrameReady()} says that the
+    right number of bytes have arrived; \code{extractFrame()} says that they mean something. A
+    fully framed frame may very well be broken.
+  \item The validation belongs in \code{Frame::deserialize()}, not in the state machine: the
+    machine knows where the fields are, the frame knows what they mean.
+  \item Junk before SOF is handled by \code{WaitForSof1} discarding everything that is not
+    \code{0xA5}. In \code{WaitForSof2} the parser is to \textbf{stay put} if the byte is
+    \code{0xA5} again.
+  \item A length field from outside has to be checked against the size of the buffer before it is
+    used. Otherwise it is a buffer overflow, not error handling.
+  \item The parser has to be reset between frames.
+\end{itemize}

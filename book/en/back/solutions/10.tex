@@ -1,0 +1,63 @@
+\section*{Chapter 10 --- The driver}
+\addcontentsline{toc}{section}{Chapter 10 --- The driver}
+
+\solution{ex:10:1}{Break the code on purpose}
+The exercise asks for code changes; the outcomes are described here.
+\ans{a} The trigger is written before the data registers, so the controller reads the previous
+frame's contents. On the bus you see a node running exactly one frame behind --- it always sends
+what you asked for \emph{last} time.
+\ans{b} Data bytes 4--7 end up in \code{TX_DATA_LO}. A frame with \code{dlc = 2} and data
+\code{AA BB} is sent as two zero bytes; the receiver gets the right length and the wrong content.
+\ans{c} \code{AA BB CC DD} arrives as \code{DD CC BB AA}. The frame arrives, with the right length
+--- just back to front.
+\ans{d} The error bit never goes low, so \code{hasError()} returns \code{true} forever after the
+first error and all error handling above stops working.
+\ans{e} \code{STATUS} bit 1 stays set. Every \code{receive()} returns \code{true} with the same
+frame, in an endless loop, and no new frame can be received.
+\ans{f} Nothing shows in the output, and that is the point. \code{PrintTransport} shows which
+bytes went out, and they are correct --- the fault is in what the driver \emph{hands back} to the
+caller, that is, in \code{frame.data} above \code{dlc}. It is caught by a test case delivering a
+frame with \code{dlc = 2} after one with \code{dlc = 8} and checking that the six topmost bytes
+are zeroed, which requires a double modelling the hardware's behaviour --- that is,
+\code{BankTransport} in \kapref{ch:testning}, not the scripted one.
+\ans{g} Writes happen in the middle of an ongoing transmission and overwrite data the controller
+is using. The outcome depends on the timing, which makes the fault sporadic.
+
+\solution{ex:10:2}{Count transactions}
+\ans{a} Six: one \code{STATUS} read and five writes.
+\ans{b} One --- the \code{STATUS} read. After that it returns \code{false}.
+\ans{c} \textbf{Zero.} The validation happens before everything else, so an invalid frame costs
+not a single transaction.
+\ans{d} One.
+\ans{e} Six: \code{STATUS}, \code{RX_ID}, \code{RX_DLC}, two data registers and \code{RX_ACK}.
+
+Question c is the point of the order: a caller that happens to send invalid frames in a loop does
+not load the bus at all.
+
+\solution{ex:10:3}{The infinite loop}
+The exercise asks for code; the outcomes are described here.
+\ans{a} The loop spins until the hardware becomes free, and then ends normally. That is the
+intended behaviour.
+\ans{b} The loop spins forever. \code{isValid()} returns \code{false} however long you wait, and
+nothing in the system is going to change that.
+\ans{c} Validate before the loop and return immediately on an invalid frame, and count attempts in
+the loop so that even hardware that never becomes free gives up. See \secref{sec:waiting}.
+
+\solution{ex:10:4}{Design questions}
+\ans{a} An enumeration as the return value instead of \code{bool}, for example: \code{Accepted},
+\code{Busy}, \code{Invalid}. The cost for \code{Stub} is small --- it would return
+\code{Accepted} or \code{Invalid} --- but the cost for \emph{the interface} is that it grows, and
+every caller has to handle more cases. The trade-off is that a \code{bool} is simpler to implement
+and harder to use correctly.
+\ans{b} A test case delivering a frame with \code{dlc = 8} and then one with \code{dlc = 2}.
+Without masking, the second frame still carries six bytes from the first, and the application
+cannot tell them from real data. On real hardware it also takes no more than the hardware group
+changing when the data accumulator is cleared, or you borrowing a board built by another group.
+\ans{c} The driver observes that \code{STATUS} bit 0 goes low at the trigger and comes back
+shortly afterwards --- exactly as on a successful transmission --- and that the error flag is set.
+It \emph{cannot} observe that it was an arbitration that was lost rather than a stuff error, a bad
+CRC or a received remote frame, and it cannot see which node won or which frame went through
+instead.
+\ans{d} Polling more often, that is, doing less work between the \code{receive()} calls. The limit
+you cannot get past is that a \code{receive()} takes around 270~µs while a frame takes 130~µs: a
+transmitter running continuously always has time to send more frames than you have time to fetch.

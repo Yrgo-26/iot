@@ -1,0 +1,15 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item En bussanalysator är en \textbf{tredje part som inte tror på någon av halvorna}. Fram till
+    nu har varje observation gjorts av en av dem, och båda kan ha läst kontraktet lika fel.
+  \item Analysatorn kvitterar dina frames. En ensam nod får aldrig någon kvittens --- och den här
+    konstruktionen märker inte ens det, eftersom den aldrig läser tillbaka ACK-luckan.
+  \item I tracen blir en förväxling av \code{TX_DATA_LO}/\code{HI} äntligen synlig, eftersom den
+    ger en frame som kommer fram med rätt längd och fel ordning.
+  \item Att hitta en avvikelse är inte att hitta ett fel. Uppgiften är att koppla den till en
+    dokumenterad förenkling --- eller konstatera att den saknar förklaring.
+  \item En \code{send()} tar längre tid än framen den skickar. SPI-länken är flaskhalsen, inte
+    CAN-bussen, och här kan du mäta det.
+\end{itemize}

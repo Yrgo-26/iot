@@ -1,0 +1,159 @@
+\section{Varför två}
+\label{sec:twodoubles}
+
+\code{ByteTransport} är ett litet interface --- tre metoder --- och just därför går det att
+implementera på två helt olika sätt, som svarar på två olika frågor.
+
+\begin{booktable}{@{}llL@{}}
+\thead{Dubblare} & \thead{Frågan} & \thead{Vad den är} \\ \midrule
+\code{ScriptedTransport} & \emph{Skickade drivrutinen rätt bytes?} & Bandspelare: spelar upp
+  förprogrammerade svar, spelar in allt som skickades. \\
+\code{BankTransport} & \emph{Beter sig drivrutinen rätt?} & Simulator: en registerbank i minnet,
+  med hårdvarans semantik. \\
+\end{booktable}
+
+Båda är utdelade. De överlappar inte, och båda behövs:
+
+\begin{booktable}{@{}lll@{}}
+\thead{Bugg} & \thead{Scripted} & \thead{Bank} \\ \midrule
+\code{clearError()} skriver \code{0x1} & Ja, direkt & Ja, indirekt \\
+\code{receive()} maskerar inte mot \code{dlc} & \textbf{Nej} & Ja \\
+\code{TX_SEND} skriven före dataregistren & Ja & \textbf{Nej} \\
+\code{TX_DATA_LO}/\code{HI} förväxlade & Ja & Nej \\
+\end{booktable}
+
+Rad två och tre är skälet till att det inte räcker med en av dem.
+
+\section{\texorpdfstring{\code{ScriptedTransport}}{ScriptedTransport}}
+\label{sec:scripted}
+
+Den gör tre saker: spelar upp \code{MISO}-bytes ur ett skript, spelar in varje \code{MOSI}-byte,
+och räknar \code{select()}/\code{deselect()}-par.
+
+\begin{cppcode}
+TEST(Spi, writeRegSendsCommandByteThenValueMsbFirst)
+{
+    // Arrange.
+    ScriptedTransport transport{};
+    driver::can::Spi driver{transport};
+
+    driver::can::Frame frame{};
+    frame.id      = 0x123U;
+    frame.dlc     = 2U;
+    frame.data[0] = 0xAAU;
+    frame.data[1] = 0xBBU;
+
+    // Act.
+    static_cast<void>(driver.send(frame));
+
+    // Assert: the TX_DATA_LO transaction.
+    const auto& sent{transport.sent()};
+    EXPECT_EQ(sent[10], 0x83U);   // CmdWrite | RegTxDataLo
+    EXPECT_EQ(sent[11], 0xAAU);
+    EXPECT_EQ(sent[12], 0xBBU);
+    EXPECT_EQ(sent[13], 0x00U);
+    EXPECT_EQ(sent[14], 0x00U);
+}
+\end{cppcode}
+
+\textbf{Läs det som protokollet, inte som kod.} De fem raderna i Assert-delen är
+\code{83 AA BB 00 00} ur \kapref{ch:spi}, skrivet som ett krav. Hela den testfilen är i praktiken
+SPI-protokollet uttryckt i C++ --- och därmed en exaktare kravspecifikation än prosan.
+
+\section{\texorpdfstring{\code{BankTransport}}{BankTransport}}
+\label{sec:bank}
+
+Den mer ambitiösa. Den tolkar kommandobyten, håller tretton register i minnet, och härmar
+hårdvarans semantik: maskeringen av \code{TX_ID}/\code{TX_DLC}, att en skrivning till
+\code{TX_SEND} nollställer TX-klar, att \code{RX_ACK} nollställer RX-giltig, och att bara ett
+nollställt ord nollställer \code{ERROR_FLAGS}.
+
+Plus några metoder som bara testet använder, för att simulera vad kontrollern gör:
+
+\begin{cppcode}
+void completeTransmission() noexcept;              /**< TX ready goes high again. */
+void deliverFrame(const driver::can::Frame& frame) noexcept;  /**< RX valid goes high. */
+void raiseError() noexcept;                        /**< The controller latches an error. */
+\end{cppcode}
+
+Med dem kan ett testfall skripta ett helt förlopp --- till exempel en frame med \code{dlc = 2} som
+följer på en med \code{dlc = 8}, vilket är exakt det fall maskeringsloopen i \kapref{ch:driver}
+finns för.
+
+\section{Hela stacken på en laptop}
+\label{sec:wholestack}
+
+\begin{cppcode}
+TEST(EchoNode, echoesThroughTheRealDriver)
+{
+    // Arrange.
+    BankTransport bank{};
+    driver::can::Spi driver{bank};
+    app::EchoNode node{driver, 0x200U};
+
+    driver::can::Frame incoming{};
+    incoming.id      = 0x123U;
+    incoming.dlc     = 2U;
+    incoming.data[0] = 0xAAU;
+    incoming.data[1] = 0xBBU;
+    bank.deliverFrame(incoming);
+
+    // Act.
+    node.run();
+
+    // Assert.
+    EXPECT_EQ(node.echoCount(), 1U);
+    EXPECT_EQ(bank.readRegister(1U), 0x200U);      // TX_ID
+    EXPECT_EQ(bank.readRegister(3U), 0xAABB0000U); // TX_DATA_LO
+}
+\end{cppcode}
+
+Jämför med testfallet i \kapref{ch:komponent}. Det är \textbf{samma testfall}, med \code{Stub}
+utbytt mot \code{Spi} + \code{BankTransport}. \code{EchoNode} är oförändrad.
+
+Det är arkitekturen som betalar tillbaka: sömmen i \code{Interface} gjorde bytet möjligt, och
+sömmen i \code{ByteTransport} gjorde det möjligt \emph{utan hårdvara}.
+
+\section{Från fallerande testfall till bugg}
+\label{sec:debugging}
+
+\begin{console}
+FAILED: EXPECT_EQ(sent[11], 0xAAU) at test_spi.cpp:87
+\end{console}
+
+Arbetsgången, och \textbf{utan att öppna din egen kod i steg 1--3}:
+
+\begin{enumerate}
+  \item \textbf{Testnamnet.} \code{writeRegSendsCommandByteThenValueMsbFirst} --- kravet gäller hur
+    ett värde skrivs ut, MSB först.
+  \item \textbf{Indexet.} \code{sent[11]} är den andra byten i den tredje transaktionen. Räkna:
+    0--4 är \code{STATUS}-läsningen, 5--9 är \code{TX_ID}, 10--14 är \code{TX_DLC}... eller
+    \code{TX_DATA_LO}? Att räkna fel här är vanligt; skriv ut hela inspelningen och titta.
+  \item \textbf{Det förväntade värdet.} \code{0xAA} är \code{frame.data[0]}. Kravet är alltså att
+    databyte 0 hamnar först.
+  \item \textbf{Nu}, och först nu: din \code{pack()}. Ligger \code{data[0]} i bitarna 31--24?
+\end{enumerate}
+
+\section{Vad en grön svit inte bevisar}
+\label{sec:notproven}
+
+Det här är viktigare än det låter.
+
+En grön svit bevisar att din kod stämmer med \textbf{testförfattarens tolkning av kontraktet}. Den
+bevisar inte:
+
+\begin{itemize}
+  \item Att \textbf{tolkningen} är rätt. Testsviten är skriven av en människa som läste samma
+    dokument som du.
+  \item Att \textbf{hårdvarugruppen} implementerat samma tolkning. Deras testbänkar är skrivna mot
+    samma dokument, av en annan människa.
+  \item Att \textbf{kopplingen} är rätt. En omkastad \code{MOSI}/\code{MISO} är osynlig för varje
+    test på laptopen.
+  \item Att \textbf{tidsbudgeten} håller. \code{BankTransport} svarar omedelbart; en riktig
+    SPI-länk gör det inte.
+  \item Att du \textbf{pollar tillräckligt ofta} för att inte tappa frames.
+\end{itemize}
+
+Allt det fångas bara av \kapref{ch:bringup} och \kapref{ch:analys}. Men allt \emph{under} de
+punkterna ska vara grönt innan du kopplar in något: \textbf{en grön svit gör inte bring-upen
+enkel; den gör den möjlig}, genom att ta bort ett par hundra felkällor innan du står vid bänken.

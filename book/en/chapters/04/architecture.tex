@@ -1,0 +1,66 @@
+\section{The layered architecture}
+\label{sec:arch}
+
+\bookfigure{architecture}{The driver stack. Every horizontal line is a boundary somebody is not
+allowed to look through.}{fig:arch}
+
+Two seams carry the whole design, and they solve different problems:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Seam} & \thead{Makes what testable} \\ \midrule
+\code{driver::can::Interface} & \textbf{The application.} \code{EchoNode} can be run against a
+  \code{Stub} and never has to know that hardware exists. \\
+\code{driver::can::ByteTransport} & \textbf{The driver itself.} The same \code{Spi} code that is
+  flashed to the target can be run on your laptop against a transport you script. \\
+\end{booktable}
+
+The second seam is not obvious, and it arrives in \kapref{ch:byte}. Without it, \code{Spi} can
+only be run on real hardware --- and that does not exist until \kapref{ch:bringup}, second to last
+in the course, on a board somebody else is debugging at the same time.
+
+\textbf{The rule that follows, and the one a reviewer should look for: no file above
+\code{driver/can/interface.hpp} may contain the word SPI.}
+
+\subsection{The seam has already paid off once}
+
+The argument for an interface is usually hypothetical --- *what if the hardware is replaced*. Here
+it is not hypothetical.
+
+An earlier version of this design reached the registers through \textbf{memory-mapped I/O} at the
+base address \code{0xFF200000}. That assumes a processor with an address bus out to the FPGA
+fabric, and the microcontroller in this system has no such bus. The registers are reached over SPI
+instead.
+
+Everything above \code{Interface} would have survived that change \textbf{unchanged}. That is the
+whole argument, demonstrated on real code.
+
+\subsection{The transmit sequence}
+
+Sending a frame (\code{id 0x123}, \code{dlc 2}, data \code{AA BB}) is five register writes and one
+poll:
+
+\begin{console}
+1. read  STATUS        -> bit 0 set? if not: busy, return false
+2. write TX_ID         = 0x00000123
+3. write TX_DLC        = 0x00000002
+4. write TX_DATA_LO    = 0xAABB0000
+5. write TX_DATA_HI    = 0x00000000
+6. write TX_SEND       = 0x00000001      -> STATUS bit 0 goes low
+   ...
+7. poll  STATUS        -> bit 0 back: the port is free
+8. read  ERROR_FLAGS   -> 0 = the frame went out, 1 = something went wrong
+\end{console}
+
+And receiving one:
+
+\begin{console}
+1. read  STATUS        -> bit 1 set? if not: no frame, return false
+2. read  RX_ID, RX_DLC
+3. read  RX_DATA_LO, RX_DATA_HI, unpack, mask against RX_DLC
+4. write RX_ACK        = 0x00000001      -> STATUS bit 1 goes low
+\end{console}
+
+\code{TX_SEND} \textbf{must} be written last. That write does not mean "store a value" but "start
+transmitting now", and the controller then reads the other registers. Write the trigger first and
+you send the previous frame's contents --- which at bring-up looks like a node running exactly one
+frame behind.

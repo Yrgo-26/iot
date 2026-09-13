@@ -1,0 +1,17 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item The interface is purely abstract and has four methods. The destructor must be
+    \code{virtual}, or an implementation deleted through a base class pointer leaks.
+  \item \code{[[nodiscard]]} on \code{send()} turns the most common driver bug --- an ignored
+    return value --- into a compiler warning.
+  \item The test for whether a method belongs in the interface: \textbf{can both \code{Stub} and
+    \code{Spi} implement it meaningfully?}
+  \item \code{inject()} therefore lives in \code{Stub}, not in \code{Interface}. The test holds
+    the concrete type; the component sees only the interface.
+  \item The stub deliberately simulates neither errors, nor busy hardware, nor a queue. A stub
+    that grows into a second hardware implementation needs testing itself.
+  \item The seam has already paid for itself: the change from memory-mapped I/O to SPI left
+    everything above \code{Interface} unchanged.
+\end{itemize}

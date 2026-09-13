@@ -1,0 +1,56 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Bryt koden med flit}{Kod}
+\label{ex:10:1}
+Gör en ändring i taget, kör mot din \code{PrintTransport}, och notera vad utskriften visar och hur
+felet skulle yttra sig på en riktig buss. Återställ efter varje.
+\begin{enumerate}[a)]
+  \item \code{TX_SEND} skrivs först i stället för sist.
+  \item \code{TX_DATA_LO} och \code{TX_DATA_HI} byter plats.
+  \item Skiftningarna inom \code{pack()} i omvänd ordning.
+  \item \code{clearError()} skriver \code{0x1}.
+  \item \code{receive()} glömmer \code{RX_ACK}.
+  \item \code{receive()} maskerar inte mot \code{dlc}.
+  \item \code{send()} hoppar över statuskontrollen.
+\end{enumerate}
+Rad f) är den svåraste: utskriften ser \emph{rätt ut}. Varför, och vilket testfall i
+\kapref{ch:testning} fångar den ändå?
+
+\exercise{Räkna transaktioner}{Räkning}
+\label{ex:10:2}
+Skriv ned utan att köra, och kontrollera sedan.
+\begin{enumerate}[a)]
+  \item En \code{send()} som lyckas?
+  \item En \code{send()} som returnerar \code{false} på grund av upptagen hårdvara?
+  \item En \code{send()} som returnerar \code{false} på grund av \code{dlc = 9}?
+  \item En \code{receive()} som inte hittar någon frame?
+  \item En \code{receive()} som hittar en?
+\end{enumerate}
+Fråga c) är poängen: valideringen ligger först \emph{just för att} en ogiltig frame inte ska kosta
+en enda transaktion.
+
+\exercise{Den oändliga loopen}{Kod}
+\label{ex:10:3}
+\begin{enumerate}[a)]
+  \item Kör \code{while (!driver.send(frame)) {}} med en giltig frame mot en transport som säger
+    att hårdvaran är upptagen. Vad händer?
+  \item Kör samma loop med \code{frame.dlc = 9}. Vad händer?
+  \item Skriv om loopen så att båda fallen hanteras.
+\end{enumerate}
+
+\exercise{Designfrågor}{Resonemang}
+\label{ex:10:4}
+Korta svar; de hör hemma i projektrapporten.
+\begin{enumerate}[a)]
+  \item \code{send()} returnerar \code{false} av två helt olika skäl. Vad hade du ändrat i
+    \code{Interface} för att skilja dem åt, och vad hade det kostat \code{Stub}?
+  \item Ge ett scenario där maskeringen mot \code{dlc} faktiskt gör skillnad.
+  \item Din nod sänder en frame och förlorar arbitreringen. Beskriv steg för steg vad drivrutinen
+    observerar --- och vad den \emph{inte} kan observera.
+  \item Kontrollern buffrar inte mottagna frames. Vilken ändring i \emph{din} kod minskar risken
+    att tappa en frame mest, och vilken gräns kommer du ändå inte förbi?
+\end{enumerate}

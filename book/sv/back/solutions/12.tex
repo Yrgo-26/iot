@@ -1,0 +1,64 @@
+\section*{Kapitel 12 --- Hårdvaran, transporten och factoryn}
+\addcontentsline{toc}{section}{Kapitel 12 --- Hårdvaran och factoryn}
+
+\solution{ex:12:1}{Se optimeraren arbeta}
+Uppgiften ber om kod; utfallen beskrivs här.
+\ans{a} Loopen försvinner, eller blir ett ovillkorligt hopp till sig själv. Kompilatorn läser
+\code{flag} en gång, ser att ingenting i loopen ändrar den, och drar slutsatsen att villkoret är
+konstant.
+\ans{b} Läsningen flyttas in i loopen igen: en laddning från minnet per varv.
+\ans{c} Statusflaggan ändras av SPI-periferin, inte av programmet. Utan \code{volatile} har
+kompilatorn samma rätt att läsa den en gång och anta att den står still --- och då väntar
+\code{transfer()} antingen för alltid eller inte alls.
+
+\solution{ex:12:2}{Förutsäg, ändra, observera}
+Uppgiften ber om kodändringar; symptomen beskrivs här.
+\ans{a} Ingenting händer på de kopplade ledningarna. Periferin ligger på standardmuxen, alltså en
+annan port, och programmet kör vidare utan att rapportera något. Det mest förvirrande symptom som
+finns: ingen felkod, inga klockpulser, ingen ledtråd.
+\ans{b} Mastern lämnar masterläget vid första \code{select()}, eftersom den tolkar den låga
+\code{SS}-nivån --- som din egen kod just skapade --- som att en annan master tagit över bussen.
+Överföringen avstannar direkt.
+\ans{c} Klockan hamnar över protokollets tak på 1~MHz. Det kan mycket väl fungera på en kort
+kabel, och det är det farliga: FPGA-slaven garanterar ingenting däröver, så felen kommer
+sporadiskt och blir värre med längre ledningar.
+\ans{d} Statusflaggan nollställs aldrig. Nästa \code{transfer()} ser en flagga som redan står kvar,
+returnerar omedelbart, och läser en byte som inte hunnit komma in --- så all data ligger
+\textbf{en byte efter} genom hela transaktionen. Det \emph{ser} ut att fungera: bytes kommer,
+antalet stämmer, bara innehållet är förskjutet, och det är lätt att misstänka bitordningen i
+stället.
+\ans{e} Klockpinnen drivs inte, så slaven ser inga flanker och ingenting överförs. Till skillnad
+från a) är \code{MOSI} och \code{SS} aktiva, vilket gör att en logikanalysator visar aktivitet på
+tre av fyra ledningar --- och pekar rätt direkt.
+
+\solution{ex:12:3}{Arkitekturtestet}
+Uppgiften ber om att kompilera; frågorna besvaras här.
+\ans{a} Det ska gå. Går det inte är arkitekturen bruten.
+\ans{b} Kompilatorfelet namnger filen, och den filen ligger per definition ovanför
+\code{driver/can/interface.h} och har lärt sig något om hårdvaran --- typiskt en \code{#include}
+av \code{spi.h} eller en referens till \code{ByteTransport}.
+\ans{c} Precis samma sak som förut, mot en array i minnet: den ekar injicerade frames och räknar
+upp sin räknare. Att beteendet är oförändrat är hela poängen --- applikationen kan inte se
+skillnad på en FPGA och en stubb.
+
+\solution{ex:12:4}{Friställt}
+Uppgiften ber om att bygga; frågorna besvaras här.
+\ans{a} Ja. Ingenting i projektet använder undantag eller RTTI.
+\ans{b} Ingenting ska hittas. Hela stacken --- \code{Frame}, \code{Interface}, \code{Stub},
+\code{ByteTransport}, \code{Spi}, \code{EchoNode} --- är byggd på statiskt allokerade objekt med
+känd storlek.
+\ans{c} Därför att kodkonventionerna var skrivna för ett friställt mål från början: returkoder i
+stället för undantag, aggregates i stället för dynamiska behållare, virtuella funktioner i
+stället för nedcastning. Det var inte tur, och det är det här kapitlet som visar vad vanan var
+värd.
+
+\solution{ex:12:5}{Konstruktionsordningen}
+\ans{a} Det kompilerar, och kompilatorn varnar inte. Medlemmar konstrueras i
+\emph{deklarationsordning}, oavsett vilken ordning initialiseringslistan råkar ha.
+\ans{b} \code{myDriver} konstrueras först och binder en referens till \code{myTransport}, som ännu
+inte konstruerats. Själva bindningen är ofarlig --- det är bara en adress --- men första anropet
+till \code{transfer()} använder ett objekt som inte hunnit initieras, alltså odefinierat beteende.
+På ett friställt mål brukar det yttra sig som att SPI-periferin aldrig konfigureras.
+\ans{c} Att en medlem som beror på en annan måste deklareras \emph{efter} den. Initialiseringslistan
+uttrycker inte ordningen; den följer bara deklarationsordningen, och en kompilator som varnar för
+det gör det bara när listan och deklarationerna står i olika ordning --- inte här.

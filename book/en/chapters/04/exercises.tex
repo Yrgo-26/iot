@@ -1,0 +1,54 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The exercises are done with pen and paper, and the solutions are in
+\hyperref[ch:losningar]{appendix~A}.
+
+\exercise{Who does what}{Reasoning}
+\label{ex:4:1}
+Fill in, for every mechanism from \kapref{ch:bussar}: who performs it in a CAN system, and where?
+Frame synchronisation, length field, addressing, sequence number, checksum, acknowledgement,
+collision handling, timeout and retransmission, duplicate detection.
+
+Two of the rows have no obvious answer. Which, and why?
+
+\exercise{Pack a frame}{Calculation}
+\label{ex:4:2}
+You are to send a frame with \code{id = 0x2A7}, \code{dlc = 5} and the data bytes
+\code{01 02 03 04 05}. Write out the five register values to be written, in the order they are to
+be written, in hexadecimal. Why does the order matter?
+
+\exercise{Unpack a frame}{Calculation}
+\label{ex:4:3}
+You read \code{RX_ID = 0x00000481}, \code{RX_DLC = 0x00000003},
+\code{RX_DATA_LO = 0xDEADBE00} and \code{RX_DATA_HI = 0x00000000}.
+\begin{enumerate}[a)]
+  \item Which identifier did the frame come from?
+  \item Which data bytes does it contain, in order?
+  \item What are \code{frame.data[3]} to \code{frame.data[7]} to contain after \code{receive()}?
+  \item Which register has to be written before the next frame can be received, and with which
+    value?
+\end{enumerate}
+
+\exercise{Four statements}{Reasoning}
+\label{ex:4:4}
+Three of the following describe a bug. Which, and what goes wrong?
+\begin{enumerate}[a)]
+  \item "After \code{send()} we poll \code{STATUS} bit 0 and return \code{true} when it comes
+    back --- then we know that the frame arrived."
+  \item "\code{clearError()} writes \code{0x1} to \code{ERROR_FLAGS} to clear the error bit."
+  \item "\code{receive()} always copies all eight bytes from \code{RX_DATA_LO}/\code{HI} into
+    \code{frame.data}."
+  \item "\code{send()} checks \code{STATUS} bit 0 before it writes \code{TX_SEND}."
+\end{enumerate}
+
+\exercise{The layer boundary}{Reasoning}
+\label{ex:4:5}
+True or false, with a one-sentence justification:
+\begin{enumerate}[a)]
+  \item \code{app::EchoNode} may include \code{driver/can/spi.hpp}.
+  \item \code{driver::can::Spi} may include \code{driver/can/interface.hpp}.
+  \item \code{driver::can::Stub} needs a \code{ByteTransport}.
+  \item \code{ByteTransport} needs to know the register map.
+  \item A test of \code{EchoNode} needs a \code{ByteTransport}.
+\end{enumerate}

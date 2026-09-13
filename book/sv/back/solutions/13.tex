@@ -1,0 +1,51 @@
+\section*{Kapitel 13 --- Bring-up}
+\addcontentsline{toc}{section}{Kapitel 13 --- Bring-up}
+
+\solution{ex:13:1}{Stegen}
+\ans{a} Steg 1 bevisar att \emph{din} SPI-master fungerar: klocka, bitordning, timing och
+konfiguration. FPGA:n är inte inkopplad och kan inte påverka utfallet. Steg 2 bevisar att hela
+kedjan fungerar --- kopplingen, slavens synkronisering, transaktionsbryggan och registerbanken ---
+och att båda sidor tolkar kommandobyten likadant.
+\ans{b} Därför att en loopback också ger tillbaka det du skrev. Skriver du \code{0x00000123} och
+läser \code{0x00000123} kan det lika gärna vara din egen \code{MOSI} som kommit tillbaka på
+\code{MISO} via en felkoppling. \textbf{Maskeringen är beviset:} skriv \code{0xFFFFFFFF} till
+\code{TX_ID} och läs tillbaka \code{0x000007FF}. Ett eko kan inte maskera bort de övre bitarna;
+bara en registerbank kan.
+\ans{c} Steg 1. \code{AvrSpiTransport} är den enda klassen i projektet som inget automattest
+täcker, eftersom den pratar med ett fysiskt register --- den kan inte köras på värddatorn, och en
+testdubblare av den hade testat dubblaren.
+
+\solution{ex:13:2}{Från symptom till hypotes}
+\ans{a} Till exempel: \code{MISO} inte kopplad eller kopplad till fel pinne; pinnmuxen inte satt,
+så periferin ligger på fel port; \code{VDDIO2} inte matad, så \code{PORTC} inte fungerar;
+FPGA:n inte programmerad; klockan för snabb; \code{SS} släpps inte mellan transaktioner; eller
+gemensam jord som saknas.
+\ans{b} Snabbast först: \code{VDDIO2} (läs MVIO-statusen i programmet --- ingen mätning alls),
+pinnmuxen (läs koden), FPGA:n programmerad (titta på kortet), sedan mätningarna: klockpulser på
+\code{SCK}, \code{SS}-beteendet, och sist kopplingen ledning för ledning.
+\ans{c} En loopback: koppla \code{MOSI} direkt till \code{MISO} och kör steg 1 igen. Får du
+tillbaka det du skickade fungerar din master och felet ligger i kopplingen mot FPGA:n eller i
+FPGA:n. Får du inte det ligger felet på din sida, och FPGA:n är utesluten.
+
+\solution{ex:13:3}{Vems fel?}
+\ans{a} Det går inte att avgöra från symptomet ensamt --- alla tre är möjliga, vilket är hela
+svårigheten med att felsöka ett system två grupper byggt varsin halva av.
+\ans{b} Klättra nedåt i stegen tills något ger rätt kvitto. Ger steg 2 och 3 rätt svar fungerar
+SPI-kedjan, alltså är felet i CAN-sidan: kopplingen till transceivern, termineringen, eller
+kontrollern. Ger steg 3 \code{0x00000001} men \code{STATUS} bit 0 aldrig går låg efter en
+\code{TX_SEND}-skrivning, når triggern inte kontrollern --- vilket pekar på registerbanken eller
+på att din skrivning inte har bit 0 satt.
+\ans{c} Den ska innehålla vad du gjorde, vad du observerade och vad du redan uteslutit. Till
+exempel: \emph{"Steg 2 ger rätt maskering för \code{TX_ID} (\code{0xFFFFFFFF} läses tillbaka som
+\code{0x000007FF}), så SPI-kedjan och registerbanken fungerar. \code{STATUS} läses som
+\code{0x00000001}. Efter en skrivning av \code{0x1} till \code{TX_SEND} går bit 0 aldrig låg, och
+inget syns på \code{tx_bus}. Vi har verifierat att vår kommandobyte är \code{0x85} och att bit 0
+är satt i datat."} Det är en rapport någon kan agera på; "det fungerar inte" är det inte.
+
+\solution{ex:13:4}{Termineringen}
+\ans{a} Ungefär 60~\textohm: två 120-ohmsmotstånd parallellt, ett i vardera änden.
+\ans{b} Det sitter tre motstånd i stället för två --- tre parallella 120~\textohm{} ger
+40~\textohm. Troligen har en nod mitt på bussen sin terminering påslagen.
+\ans{c} Det sitter bara ett motstånd; det andra saknas eller är inte anslutet. Det visar sig när
+kabeln blir längre, hastigheten högre eller miljön störigare --- alltså typiskt när konstruktionen
+flyttas från labbänken, vilket är det sämsta tänkbara tillfället.

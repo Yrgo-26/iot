@@ -1,0 +1,19 @@
+\chapter{Transportsömmen och registeråtkomsten}
+\label{ch:byte}
+
+\lecture{Föreläsning 9}{CAN-drivrutinen}
+
+{\large\itshape Protokollet blir kod, och drivrutinen blir körbar på en laptop.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item \code{ByteTransport}: varför \code{Interface} inte räckte.
+  \item Registerindex, statusmasker och kommandobiten som namngivna konstanter.
+  \item \code{readReg()} och \code{writeReg()}, rad för rad.
+  \item Teckenutvidgningsbuggen, som är projektets vanligaste.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/09/transport}
+\input{chapters/09/summary}
+\input{chapters/09/exercises}

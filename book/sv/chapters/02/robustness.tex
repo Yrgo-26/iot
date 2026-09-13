@@ -1,0 +1,69 @@
+\section{Robusthet}
+\label{sec:robust}
+
+En parser som bara fungerar när allt går rätt är inte en parser. Tre fall måste hanteras, och alla
+tre inträffar på riktigt.
+
+\subsection{Skräpdata före SOF}
+
+Noden kopplas in mitt i en pågående överföring, eller en störning lägger till bytes. Strömmen ser
+ut så här:
+
+\begin{console}
+32 74 00 FF A5 F7 03 03 25 17 7F 05 10 20 30 02 C2
+|---------| |-------------------------------------|
+  skräp                    framen
+\end{console}
+
+Lösningen faller ut ur tillståndsmaskinen gratis: i \code{WaitForSof1} kastas varje byte som inte
+är \code{0xA5}. Parsern står stilla tills strömmen börjar se ut som en frame.
+
+Ett fall är värt att tänka igenom särskilt: parsern står i \code{WaitForSof2} och får en byte som
+inte är \code{0xF7}. Det naiva svaret är att gå tillbaka till \code{WaitForSof1} och kasta byten.
+Men om byten var \code{0xA5} har man just kastat starten på en riktig frame. Rätt svar är att
+stanna i \code{WaitForSof2}: den byte man nyss såg kan vara den nya frames första.
+
+\subsection{Tappade bytes}
+
+En byte försvinner. Då blir alla följande fält förskjutna ett steg, längdfältet läser en databyte
+som längd, och parsern väntar på fel antal bytes.
+
+Det finns ingen elegant räddning, och det ska inte finnas någon: framen \emph{är} förlorad.
+Poängen är att parsern ska upptäcka det och komma tillbaka till ett känt läge, inte att den ska
+gissa. Checksumman fallerar, \code{extractFrame()} returnerar \code{false}, anroparen anropar
+\code{reset()}, och nästa \code{0xA5F7} i strömmen startar om.
+
+\subsection{Orimlig längd}
+
+Det här är fallet som är lätt att missa, och det enda i kapitlet som är en säkerhetsbugg och inte
+bara en felhantering.
+
+Längdfältet är en byte och kan alltså vara upp till 255. Parserns buffert rymmer
+\code{MaxPayloadLen} bytes. Tar parsern emot en längd som är större än så, och sedan lydigt
+skriver in så många databytes, skriver den utanför sin egen buffert.
+
+\begin{cppcode}
+case State::WaitForLen:
+{
+    // Reject a length the buffer cannot hold, else the payload would overflow myBuf.
+    if (MaxPayloadLen < byte) { return reportParseError(); }
+
+    myBuf[myParsedBytes++] = byte;
+    myState                = State::WaitForType;
+    break;
+}
+\end{cppcode}
+
+\begin{aside}
+\note[Regel] Varje längd som kommer utifrån ska kontrolleras mot buffertens storlek \emph{innan}
+den används, inte efter. Regeln gäller överallt i den här boken, och den gäller
+\code{TX_DLC} i \kapref{ch:driver} av exakt samma skäl.
+\end{aside}
+
+\subsection{Två frames efter varandra}
+
+När en frame är klar och extraherad måste parsern nollställas innan nästa kan tas emot. Glöms det
+står den kvar i \code{Ready} och kastar varje ny byte.
+
+Det är därför \code{reset()} finns i det publika gränssnittet, och det är därför noden i
+\kapref{ch:bussar} anropar den efter varje extraherad frame.

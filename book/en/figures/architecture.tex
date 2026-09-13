@@ -1,0 +1,35 @@
+% The driver stack, with the two seams marked.
+\begin{tikzpicture}[
+  every node/.style={font=\scriptsize},
+  blk/.style={draw=rule, rounded corners=2pt, minimum width=3.1cm, minimum height=0.7cm,
+              align=center, font=\scriptsize, fill=white},
+  arr/.style={-{Stealth[length=1.8mm]}, muted, line width=0.5pt}]
+
+  \node[blk, fill=fillaccent3!50] (app)  at (0,4.3) {\code{app::EchoNode}};
+  \node[blk, fill=fillaccent2!55] (intf) at (0,3.4) {\code{driver::can::Interface}};
+  \node[blk]                      (stub) at (-2.1,2.4) {\code{Stub}};
+  \node[blk]                      (spi)  at (2.1,2.4)  {\code{Spi}};
+  \node[blk, fill=fillaccent2!55] (bt)   at (2.1,1.4)  {\code{ByteTransport}};
+  \node[blk]                      (test) at (-0.3,0.4) {test transport};
+  \node[blk]                      (avr)  at (3.6,0.4)  {\code{AvrSpiTransport}};
+  \node[blk, fill=fillmuted]      (hw)   at (2.1,-0.8) {FPGA: bridge, bank, controller};
+  \node[blk, fill=fillmuted]      (bus)  at (2.1,-1.7) {the CAN bus};
+
+  \draw[arr] (app) -- (intf);
+  \draw[arr] (intf) -- (stub);
+  \draw[arr] (intf) -- (spi);
+  \draw[arr] (spi) -- (bt);
+  \draw[arr] (bt) -- (test);
+  \draw[arr] (bt) -- (avr);
+  \draw[arr] (avr) -- (hw);
+  \draw[arr] (hw) -- (bus);
+
+  % The seams.
+  \node[accent2, anchor=west, font=\scriptsize\itshape] at (1.75,3.4) {};
+  \draw[accent2, dashed, line width=0.5pt] (-3.9,3.85) -- (5.4,3.85);
+  \node[accent2, anchor=west, font=\tiny] at (5.5,3.85) {seam 1};
+  \draw[accent2, dashed, line width=0.5pt] (-3.9,1.85) -- (5.4,1.85);
+  \node[accent2, anchor=west, font=\tiny] at (5.5,1.85) {seam 2};
+  \draw[rule, dashed, line width=0.5pt] (-3.9,-0.25) -- (5.4,-0.25);
+  \node[muted, anchor=west, font=\tiny, align=left] at (5.5,-0.25) {hardware};
+\end{tikzpicture}

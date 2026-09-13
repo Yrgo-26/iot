@@ -1,0 +1,77 @@
+\section{Från buffer till ström}
+\label{sec:frombuffer}
+
+I \kapref{ch:frames} antog vi att en komplett frame låg i en buffer. Det gör den aldrig.
+
+En seriell länk levererar en byte i taget, när den kommer, och en nod som väntar på nästa byte får
+inte stanna och vänta --- den har annat att göra. Mottagningen måste alltså vara
+\textbf{inkrementell}: ta emot en byte, gör vad som går att göra med den, och återvänd.
+
+Det är precis vad en tillståndsmaskin är till för.
+
+\subsection{Tillstånden}
+
+Ett tillstånd per fält, plus ett som betyder klar:
+
+\begin{console}
+WaitForSof1 -> WaitForSof2 -> WaitForLen  -> WaitForType -> WaitForDst
+            -> WaitForSrc  -> WaitForSeq1 -> WaitForSeq2 -> WaitForPayload
+            -> WaitForChk1 -> WaitForChk2 -> Ready
+\end{console}
+
+Parserns publika gränssnitt är litet:
+
+\begin{cppcode}
+class Parser final
+{
+public:
+    /** Feed the parser one byte. Returns false on a parse error. */
+    bool processByte(std::uint8_t byte) noexcept;
+
+    /** True when a complete frame has been framed. */
+    bool isFrameReady() const noexcept;
+
+    /** Validate and copy out the framed data. */
+    bool extractFrame(Frame& frame) const noexcept;
+
+    /** Discard any partial frame and start over. */
+    void reset() noexcept;
+};
+\end{cppcode}
+
+\subsection{Två ansvar, medvetet åtskilda}
+
+Lägg märke till att \code{isFrameReady()} och \code{extractFrame()} är två olika saker, och att
+det är avsiktligt:
+
+\begin{itemize}
+  \item \code{isFrameReady()} säger att \textbf{framningen} är klar --- rätt antal bytes har
+    kommit in, på rätt platser.
+  \item \code{extractFrame()} säger att framen är \textbf{giltig} --- SOF stämmer, längden är
+    rimlig, typen finns, och checksumman går ihop.
+\end{itemize}
+
+En frame kan vara färdigframad och ändå trasig. Det är själva normalfallet när något gått fel på
+ledningen, och därför måste de två frågorna ställas var för sig.
+
+\begin{cppcode}
+bool Parser::extractFrame(Frame& frame) const noexcept
+{
+    if (!isFrameReady()) { return false; }
+
+    // Deserialize validates SOF, payload length, frame type and checksum, so a frame that was
+    // framed correctly but arrived corrupted is rejected here.
+    return frame.deserialize(myBuf, static_cast<std::size_t>(myParsedBytes));
+}
+\end{cppcode}
+
+Valideringen ligger alltså i \code{Frame::deserialize()} och inte i tillståndsmaskinen. Det är
+inte en slump: tillståndsmaskinen vet var fälten \emph{ligger}, framen vet vad de \emph{betyder},
+och att blanda ihop de två ansvaren ger en parser som måste ändras varje gång protokollet gör det.
+
+\begin{aside}
+\note \code{extractFrame()} är \code{const} och kan därför inte nollställa parsern. Det är ett
+medvetet val: den som anropar den vet om den vill försöka igen eller kasta bort framen, och gör
+\code{reset()} själv. Samma mönster återkommer i drivrutinen: en metod rapporterar, anroparen
+bestämmer.
+\end{aside}

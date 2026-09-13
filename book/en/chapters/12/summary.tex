@@ -1,0 +1,20 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item \code{volatile} tells the compiler not to optimise away reads of something the hardware
+    changes. It is \textbf{not} a synchronisation mechanism.
+  \item \code{volatile} may appear in \textbf{one single file}: the transport's implementation.
+    That is what the seam in \kapref{ch:byte} bought.
+  \item Three settings are traps: the pin mux (without it the wires are silent), slave select
+    disable (without it the master leaves master mode on the first \code{select()}), and the
+    prescaler.
+  \item \code{transfer()} has to \textbf{read} the data register after every transfer. Otherwise
+    all the data is one byte out.
+  \item MVIO lets \code{PORTC} run at 3.3~V while the core runs at 5~V --- no level shifter.
+    \code{VDDIO2} has to be powered before the port does anything.
+  \item The factory's members are declared in construction order: the transport before the driver
+    that binds a reference to it.
+  \item The test of the architecture: swap \code{Spi} for \code{Stub} in the factory and compile
+    for the host computer. If it fails, some line above the interface has learnt too much.
+\end{itemize}

@@ -1,0 +1,59 @@
+\section*{Chapter 4 --- CAN, the register map and the architecture}
+\addcontentsline{toc}{section}{Chapter 4 --- CAN, the register map and the architecture}
+
+\solution{ex:4:1}{Who does what}
+Frame synchronisation, the length field, the checksum, the acknowledgement and collision handling
+are all done by \textbf{the hardware}: SOF and EOF, the DLC, CRC-15, the ACK bit inside the frame,
+and the arbitration the bus resolves electrically.
+
+The two rows without an obvious answer are \textbf{addressing} and \textbf{sequence numbers}. CAN
+has no destination address and no sequence number at all: the identifier describes the content,
+and if a sequence number is needed the application has to put it in the payload.
+
+\textbf{Timeout and retransmission} together with \textbf{duplicate detection} are a third case: a
+complete CAN controller handles the retransmission in hardware, but the simplified one in this
+design does not --- see \secref{sec:limits}.
+
+\solution{ex:4:2}{Pack a frame}
+Data byte 0 sits in the most significant bits, and \code{TX_DATA_LO} carries the \emph{first} four
+bytes:
+
+\begin{console}
+TX_ID      = 0x000002A7
+TX_DLC     = 0x00000005
+TX_DATA_LO = 0x01020304
+TX_DATA_HI = 0x05000000
+TX_SEND    = 0x00000001
+\end{console}
+
+The order matters because the write to \code{TX_SEND} does not store a value but \emph{triggers a
+transmission}: the controller then reads the other registers. If the trigger is written first, the
+previous frame's contents are sent.
+
+\solution{ex:4:3}{Unpack a frame}
+\ans{a} \code{0x481}.
+\ans{b} \code{DE AD BE} --- three bytes, since \code{RX_DLC} is 3 and \code{RX_DATA_LO} carries
+bytes 0--3 with byte 0 at the top.
+\ans{c} Zero. The driver is to mask against \code{dlc}; bytes above the received length are not
+the frame's content, even if the hardware happens to zero them.
+\ans{d} \code{RX_ACK}, with \code{0x1}. Bit 0 has to be set.
+
+\solution{ex:4:4}{Four statements}
+\textbf{a, b and c describe bugs.}
+
+\ans{a} Bit 0 means \emph{the port is free again}, not \emph{the frame arrived} --- a lost
+arbitration gives the same bit back. Read \code{ERROR_FLAGS} afterwards.
+\ans{b} \code{ERROR_FLAGS} is cleared only by an \emph{all-zero} word. \code{0x1} does nothing, so
+the error bit never goes low.
+\ans{c} Bytes above \code{RX_DLC} do not belong to the frame. Copying all eight reports up to six
+bytes that were never sent.
+\ans{d} Correct. Without the check, a write can happen in the middle of an ongoing transmission.
+
+\solution{ex:4:5}{The layer boundary}
+\ans{a} False. \code{EchoNode} sits above the interface and must not know about any concrete
+driver.
+\ans{b} True. \code{Spi} \emph{is} an \code{Interface} and has to include it.
+\ans{c} False. The stub simulates CAN in memory and has no transport.
+\ans{d} False. The transport moves bytes and knows nothing about registers --- that is the whole
+point of it being dumb.
+\ans{e} False. \code{EchoNode} is tested through \code{Stub}, which has no transport.

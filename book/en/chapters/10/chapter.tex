@@ -1,0 +1,20 @@
+\chapter{The driver}
+\label{ch:driver}
+
+\lecture{Lecture 10}{The CAN driver}
+
+{\large\itshape The four methods, and the limitations they must not hide.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item \code{send()}: validation, status check, five writes, one trigger --- in that order.
+  \item Packing and unpacking across register pairs.
+  \item \code{receive()}, and why it masks against \code{dlc} even though the hardware already
+    zeroes.
+  \item \code{clearError()}, which writes zero and not one.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/10/methods}
+\input{chapters/10/summary}
+\input{chapters/10/exercises}

@@ -1,0 +1,53 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Förutsäg}{Räkning}
+\label{ex:9:1}
+Svara innan du kompilerar.
+\begin{enumerate}[a)]
+  \item Vad blir kommandobyten för en skrivning till \code{RegTxDataHi}? För en läsning av samma?
+  \item Vilken sekvens av fem bytes producerar \code{writeReg(RegTxDataLo, 0xAABB0000U)}?
+  \item Vad returnerar \code{readReg()} om transporten svarar \code{FF 12 34 56 78} på de fem
+    \code{transfer()}-anropen?
+  \item Vad returnerar den om du av misstag räknar med alla fem mottagna byten?
+\end{enumerate}
+
+\exercise{Teckenutvidgningen}{Kod}
+\label{ex:9:2}
+Skriv \code{readReg()} en gång \textbf{fel}, med skiftningen före casten. Låt transporten svara så
+att den första databyten är \code{0x80}.
+\begin{enumerate}[a)]
+  \item Vad blir \code{value}, och varför?
+  \item För vilka värden fungerar den felaktiga koden ändå?
+  \item Hur skulle symptomet se ut om buggen låg kvar till bring-upen? Vilka \code{id}-värden hade
+    fungerat?
+\end{enumerate}
+
+\exercise{En transport att felsöka med}{Kod}
+\label{ex:9:3}
+Skriv en \code{PrintTransport} som implementerar \code{ByteTransport} och skriver ut varje anrop:
+\begin{console}
+select
+  -> 81   <- 00
+  -> 00   <- 00
+  -> 00   <- 00
+  -> 01   <- 00
+  -> 23   <- 00
+deselect
+\end{console}
+Jämför utskriften rad för rad mot exemplet i \kapref{ch:spi}. Den är inte en testdubblare utan ett
+felsökningsverktyg, och den är värd att behålla hela projektet.
+
+\exercise{Lagergränsen}{Resonemang}
+\label{ex:9:4}
+Sant eller falskt, med motivering:
+\begin{enumerate}[a)]
+  \item \code{byte_transport.hpp} får inkludera \code{frame.hpp}.
+  \item \code{ByteTransport} borde ha en metod \code{writeRegister(index, value)}.
+  \item \code{ByteTransport} borde göra hela femBytestransaktionen i ett anrop.
+  \item \code{readReg()} borde vara publik så att testerna kan anropa den direkt.
+\end{enumerate}
+Påstående c) låter mest rimligt och är ändå fel. Varför?

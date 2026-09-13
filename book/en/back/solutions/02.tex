@@ -1,0 +1,40 @@
+\section*{Chapter 2 --- Byte parsing}
+\addcontentsline{toc}{section}{Chapter 2 --- Byte parsing}
+
+\solution{ex:2:1}{Find the frame}
+\ans{a} At index 4 (zero-indexed): \code{32 74 00 FF} is junk, and \code{A5 F7} at index 4--5 is
+the SOF.
+\ans{b} \code{A5 F7 03 03 25 17 7F 05 10 20 30 02 C2} --- thirteen bytes, that is, ten header and
+footer bytes plus three data bytes.
+\ans{c} Discard them. They are received in \code{WaitForSof1} and rejected one by one, since none
+of them is \code{0xA5}.
+\ans{d} \code{TYPE = 0x03}, that is, \code{StatusResponse}, from \code{SRC = 0x17} to
+\code{DST = 0x25}.
+
+\solution{ex:2:2}{The SOF trap}
+\ans{a} The naive implementation goes back to \code{WaitForSof1} and discards the byte. It thereby
+discards the byte that may just have been the new frame's first.
+\ans{b} Stay in \code{WaitForSof2}. The byte was \code{0xA5}, that is, a possible start of SOF in
+its own right.
+\ans{c} For example \code{A5 A5 F7 ...}: here the second \code{0xA5} is the frame's real
+beginning. The naive parser discards it, ends up in \code{WaitForSof1}, sees \code{0xF7} --- which
+is not \code{0xA5} --- and misses the whole frame.
+
+\solution{ex:2:3}{A dropped byte}
+\ans{a} \code{LEN} is still 3, so the parser collects \code{10 30 02} as the payload and then
+reads \code{C2} as the \emph{first} checksum byte.
+\ans{b} Not on this stream. The parser is in \code{WaitForChk2} waiting for a byte that never
+comes; only when the next byte arrives is the framing complete.
+\ans{c} \code{false}. The framing can succeed, but \code{Frame::deserialize()} recomputes the
+checksum and it does not match.
+\ans{d} \code{WaitForChk2} until the next byte arrives. To find the next frame the caller has to
+call \code{reset()}, after which the parser looks for \code{0xA5} again.
+
+\solution{ex:2:4}{The length field}
+\ans{a} Set \code{LEN} to a value greater than \code{MaxPayloadLen}, for example
+\code{A5 F7 FF 00 ...}. The parser then collects 255 data bytes into a buffer that holds fewer.
+\ans{b} Too late. The damage is done during the collection, that is, in \code{processByte()}, long
+before anybody gets to call \code{extractFrame()}.
+\ans{c} That every length coming from outside is to be checked against the size of the buffer
+\emph{before} it is used. The same rule applies to \code{TX_DLC} in \kapref{ch:driver}: the
+hardware does not validate, so the driver has to reject \code{dlc > 8} before it writes anything.

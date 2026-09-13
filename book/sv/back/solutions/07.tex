@@ -1,0 +1,47 @@
+\section*{Kapitel 7 --- Komponenttest genom stubben}
+\addcontentsline{toc}{section}{Kapitel 7 --- Komponenttest genom stubben}
+
+\solution{ex:7:1}{Skriv buggen, se testet fånga den}
+Uppgiften ber om en kodändring; frågorna besvaras här.
+\ans{a} Fallen som kontrollerar den ekade framens innehåll och räknaren fallerar --- framen som
+ekas har fel \code{dlc}, och fallet som anropar \code{run()} två gånger på en injicerad frame
+avslöjar att tillståndet konsumerats. Fallet utan injicerad frame är fortfarande grönt, eftersom
+\code{receive()} returnerar \code{false} redan första gången.
+\ans{b} Nej, inget av dem. \code{Stub} och \code{Frame} gör exakt vad de lovar; ingen av dem är
+trasig.
+\ans{c} Ett enhetstest kan inte se en bugg som bor \emph{mellan} enheterna. Det krävs ett test som
+kör flera delar tillsammans för att upptäcka att den ena använder den andra fel.
+
+\solution{ex:7:2}{Lagergränsen}
+\ans{a} Nej. \code{EchoNode} måste känna till interfacet --- det är dess enda beroende.
+\ans{b} Nej. Testet håller i den konkreta typen; det är där \code{inject()} finns.
+\ans{c} Ja. Implementationsfilen ligger också ovanför interfacet, och får inte veta vilken
+drivrutin den kör mot.
+\ans{d} Nej, den bryter inte mot gränsen --- \code{hasError()} och \code{clearError()} tillhör
+interfacet. Men det är ändå tveksamt: \code{EchoNode} kan inte göra något meningsfullt åt ett fel
+den inte kan tolka, och felflaggan är en bit för fyra orsaker. Felhanteringen hör hemma hos den
+som äger drivrutinen och känner systemets krav, alltså i factoryn eller i lagret ovanför.
+\ans{e} Ja, grovt. Casten namnger en konkret drivrutin \emph{och} når en privat metod i den. Den
+skulle dessutom krascha så fort en \code{Stub} injicerades.
+
+\solution{ex:7:3}{Ägande}
+\ans{a} Det kompilerar inte. \code{Interface} är abstrakt och går inte att instansiera som värde;
+kompilatorn säger att typen är abstrakt. Vore den det inte skulle medlemmen \emph{skiva} objektet
+--- kopiera basklassdelen och kasta resten --- vilket är värre än ett kompileringsfel.
+\ans{b} Det kompilerar. Referensen pekar då på ett förstört objekt, och \code{run()} är odefinierat
+beteende. Kompilatorn kan inte se det; det är den ena kostnaden för att komponenten inte äger sin
+drivrutin.
+\ans{c} Därför att \code{EchoNode} inte äger den. Drivrutinens livstid är längre än komponentens,
+den kan delas med andra komponenter, och ägandet ligger hos factoryn. En \code{unique_ptr} hade
+påstått motsatsen, och en \code{shared_ptr} hade lagt till räkning som ingen behöver.
+
+\solution{ex:7:4}{Läs sviten}
+\ans{a} Fallet som bara kontrollerar den ekade framens \emph{innehåll} --- rätt \code{id},
+\code{dlc} och data --- skulle vara grönt, eftersom ekot fortfarande sker. Det är därför sviten
+också kontrollerar räknaren.
+\ans{b} Trafik matas in med \code{stub.inject()} och läses tillbaka med \code{stub.receive()}.
+Ingen av dem finns i \code{Interface}: \code{inject()} kan \code{Spi} inte implementera, och
+\code{receive()} används här i en annan roll än interfacets --- testet inspekterar vad komponenten
+\emph{skickade}, vilket stubben råkar lagra i samma fält.
+\ans{c} Att \code{run()} konsumerar framen: efter första anropet finns ingenting kvar att eka, så
+räknaren ska stå på 1 och inte 2. Det är kravet som fångar dubbelanropet i övning~\ref{ex:7:1}.

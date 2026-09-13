@@ -1,0 +1,73 @@
+\chapter*{Preface}
+\addcontentsline{toc}{chapter}{Preface}
+\markboth{Preface}{Preface}
+
+This book is about two ways of solving the same problem.
+
+The first part solves it in software. You decide for yourself where a frame begins, how long it
+is, how it is protected against errors, and what should happen when a reply never arrives. Every
+mechanism becomes your own, and every mechanism becomes code you have to write and maintain. That
+is instructive in a way that is hard to replace: you understand what a length field is for only
+once you have forgotten one.
+
+The second part throws all of that away and lets the hardware do the work. CAN dates from 1986,
+it sits in every car built since the mid-nineties, and it solves very nearly the problems you have
+just solved yourself --- except in silicon, and better. What is left for the software is talking
+to the controller.
+
+The third part connects it to reality: a microcontroller, an FPGA, four wires between them, and a
+bus a bus analyser can read.
+
+\section*{What makes the course unusual}
+
+The CAN controller you write a driver for does not exist yet. It is being designed in VHDL by a
+parallel class, at the same time as you write the software against it.
+
+Neither class can compile against the other's code. The only thing binding the two halves
+together is two documents --- a register map and an SPI protocol --- and they are the project's
+real requirements specification.
+
+\begin{aside}
+\note Working against a contract instead of against an implementation is not a classroom
+exercise. It is how embedded development works when hardware and software are built in parallel,
+which is the normal case and not the exception. Most of what is hard in this course is hard for
+that reason.
+\end{aside}
+
+\section*{How the book is arranged}
+
+One chapter per lecture, fifteen of them, in three parts:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Chapters} & \thead{Part} \\ \midrule
+1--3 & \textbf{A protocol of your own.} Frames, byte parsing, buses, routing and reliability. \\
+4--12 & \textbf{The CAN driver.} The register map, the architecture, the interface, the stub, SPI,
+  the transport seam, the driver, the testing and the hardware. \\
+13--15 & \textbf{The hardware.} Bring-up, bus analysis, and revision for the written test. \\
+\end{booktable}
+
+Every chapter opens with what it contains, ends with a summary, and has its exercises after that.
+\textbf{The solutions to every exercise that does not ask for code are in appendix~A} --- all the
+reasoning, calculation and decoding exercises, and the parts of the coding exercises that are
+reasoning. The code that the coding exercises ask for is not answered there: for that, the
+supplied test suite is the answer, and the code is published in the course repository after the
+lecture in question.
+
+The practice exam with full answers is last, in the appendix.
+
+\section*{Assumed knowledge}
+
+The book assumes classes, inheritance, virtual functions, abstract base classes and the factory
+pattern. It does not revise them. It also assumes basic familiarity with Git, a terminal and
+\code{make}.
+
+Nothing about CAN, about hardware registers or about testing is assumed.
+
+\section*{Further reading}
+
+One more book belongs to the course, and it is not needed to pass it: \textit{CAN --- bussen,
+framen och kontrollern}, the course's own book about CAN as a protocol. It covers the bus, the
+frame, bit stuffing, CRC-15, arbitration, bit timing and error handling, with exercises and
+answers, and is to be regarded as the long version of this book's chapter~4. It lives in a
+repository of its own, because it is shared with the hardware course and therefore mentions no
+course by name.

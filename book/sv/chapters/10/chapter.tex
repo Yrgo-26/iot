@@ -1,0 +1,19 @@
+\chapter{Drivrutinen}
+\label{ch:driver}
+
+\lecture{Föreläsning 10}{CAN-drivrutinen}
+
+{\large\itshape De fyra metoderna, och begränsningarna de inte får dölja.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item \code{send()}: validering, statuskontroll, fem skrivningar, en trigger --- i den ordningen.
+  \item Packning och uppackning över registerpar.
+  \item \code{receive()}, och varför den maskerar mot \code{dlc} trots att hårdvaran redan nollar.
+  \item \code{clearError()}, som skriver noll och inte ett.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/10/methods}
+\input{chapters/10/summary}
+\input{chapters/10/exercises}

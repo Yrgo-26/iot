@@ -1,0 +1,21 @@
+\chapter{Byte parsing}
+\label{ch:parsning}
+
+\lecture{Lecture 2}{A protocol of your own}
+
+{\large\itshape Reality: data arrives one byte at a time, and sometimes the wrong bytes
+arrive.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item Why a parser is needed once the frame no longer sits ready in a buffer.
+  \item The parser as a state machine, state by state.
+  \item Recovery: junk before SOF, dropped bytes, a broken checksum.
+  \item Where validation belongs, and why not in the state machine.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/02/statemachine}
+\input{chapters/02/robustness}
+\input{chapters/02/summary}
+\input{chapters/02/exercises}

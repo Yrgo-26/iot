@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item Två testdubblare, två frågor. \code{ScriptedTransport} kontrollerar \emph{vilka bytes} som
+    skickades; \code{BankTransport} kontrollerar \emph{hur drivrutinen beter sig}.
+  \item De överlappar inte. En utebliven maskering mot \code{dlc} fångas bara av den ena, en
+    felordnad trigger bara av den andra.
+  \item \code{ScriptedTransport}-filen är SPI-protokollet skrivet som kod --- och därmed en
+    exaktare kravspecifikation än prosan.
+  \item Med \code{BankTransport} körs \textbf{hela stacken} på laptopen. Testfallet är detsamma
+    som i \kapref{ch:komponent}, med \code{Stub} utbytt. \code{EchoNode} är oförändrad.
+  \item Läs ett fallerande testfall i ordningen testnamn $\rightarrow$ index $\rightarrow$
+    förväntat värde $\rightarrow$ din kod.
+  \item En grön svit bevisar att koden stämmer med testförfattarens \emph{tolkning}. Kopplingen,
+    tidsbudgeten och den andra gruppens tolkning står utanför.
+\end{itemize}

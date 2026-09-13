@@ -1,0 +1,46 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Skriv buggen, se testet fånga den}{Kod}
+\label{ex:7:1}
+Ändra tillfälligt \code{run()} så att den anropar \code{receive()} två gånger.
+\begin{enumerate}[a)]
+  \item Vilka testfall fallerar, och vilka är fortfarande gröna?
+  \item Kör bara enhetstesterna för \code{Stub} och \code{Frame}. Fallerar något av dem?
+  \item Skriv ned i två meningar vad övningen visade.
+\end{enumerate}
+
+\exercise{Lagergränsen}{Resonemang}
+\label{ex:7:2}
+Bryter raden mot arkitekturens lagergräns? Motivera i en mening.
+\begin{enumerate}[a)]
+  \item \code{#include "driver/can/interface.hpp"} i \code{echo_node.hpp}.
+  \item \code{#include "driver/can/stub.hpp"} i \code{test_echo_node.cpp}.
+  \item \code{#include "driver/can/stub.hpp"} i \code{echo_node.cpp}.
+  \item \code{if (myDriver.hasError()) { myDriver.clearError(); }} i \code{run()}.
+  \item \code{static_cast<driver::can::Spi&>(myDriver).readReg(0U);} i \code{run()}.
+\end{enumerate}
+Rad d) bryter inte mot någon gräns --- men är den en bra idé? Vem borde hantera fel?
+
+\exercise{Ägande}{Resonemang}
+\label{ex:7:3}
+\begin{enumerate}[a)]
+  \item Vad händer om du byter \code{driver::can::Interface& myDriver} mot
+    \code{driver::can::Interface myDriver}? Vad säger kompilatorn, och varför?
+  \item Vad händer om du skapar en \code{EchoNode} med en \code{Stub} som går ur scope innan
+    \code{run()} anropas? Kompilerar det?
+  \item Varför är drivrutinen en referens och inte en \code{std::unique_ptr}?
+\end{enumerate}
+
+\exercise{Läs sviten}{Resonemang}
+\label{ex:7:4}
+Öppna den utdelade \code{test_echo_node.cpp}.
+\begin{enumerate}[a)]
+  \item Vilket fall skulle fortfarande vara grönt om \code{run()} glömde räkna upp räknaren?
+  \item Hur får testet in en frame, och hur läser det tillbaka den ekade? Varför finns de
+    metoderna inte i \code{Interface}?
+  \item Vilket krav uttrycker fallet som anropar \code{run()} två gånger på en injicerad frame?
+\end{enumerate}

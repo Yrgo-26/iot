@@ -1,0 +1,20 @@
+\chapter{Frames}
+\label{ch:frames}
+
+\lecture{Föreläsning 1}{Ett eget protokoll}
+
+{\large\itshape Varför en byte-ström inte är kommunikation, och vad som måste läggas till.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item Vad ett kommunikationsprotokoll är, och vilket problem det löser.
+  \item Varför en ostrukturerad byte-ström inte går att tolka.
+  \item Framens fält: SOF, LEN, TYPE, DST, SRC, SEQ, DATA och CHK.
+  \item Serialisering och deserialisering, och endianness som felkälla.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/01/stream}
+\input{chapters/01/frame}
+\input{chapters/01/summary}
+\input{chapters/01/exercises}

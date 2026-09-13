@@ -1,0 +1,38 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+\exercise{The ladder}{Reasoning}
+\label{ex:13:1}
+\begin{enumerate}[a)]
+  \item What does rung 2 prove that rung 1 did not?
+  \item Why is it not enough to read back the same value you wrote?
+  \item Which rung is the only test of \code{AvrSpiTransport}, and why is there no automated test
+    for that class?
+\end{enumerate}
+
+\exercise{From symptom to hypothesis}{Reasoning}
+\label{ex:13:2}
+You read \code{STATUS} and get \code{0x00000000} every time.
+\begin{enumerate}[a)]
+  \item List at least four possible causes.
+  \item Order them by how quickly they can be ruled out.
+  \item Which measurement tells the first two apart?
+\end{enumerate}
+
+\exercise{Whose fault?}{Reasoning}
+\label{ex:13:3}
+Your node sends a frame, but nothing shows on the bus.
+\begin{enumerate}[a)]
+  \item Is the fault in your driver, in the FPGA or in the wiring?
+  \item How do you decide that \emph{without} guessing?
+  \item Write the fault report you would send to the hardware group, with what you know so far.
+\end{enumerate}
+
+\exercise{The termination}{Calculation}
+\label{ex:13:4}
+You measure the resistance across the unpowered bus.
+\begin{enumerate}[a)]
+  \item What should you get with correct termination?
+  \item You get 40~\textohm. What is wrong?
+  \item You get 120~\textohm. What is wrong, and when would it show?
+\end{enumerate}

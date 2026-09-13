@@ -1,0 +1,19 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item \code{Interface} makes the application testable; \code{ByteTransport} makes \textbf{the
+    driver} testable. Without the second seam, \code{Spi} runs for the first time on hardware
+    somebody else is debugging at the same time.
+  \item The transport is deliberately dumb: \code{select()}, \code{deselect()},
+    \code{transfer()}. It does not know that a transaction is five bytes long --- the framing
+    belongs to the protocol.
+  \item The register constants are \textbf{indices}, not offsets, and the masks are written as
+    shifts so that they can be compared line by line against the register map.
+  \item \code{readReg()} discards the byte clocked in during the command byte. Four out of five
+    contribute.
+  \item \textbf{Cast before the shift.} Otherwise a \code{std::uint8_t} is promoted to \code{int},
+    and a byte with bit 7 set shifted 24 steps writes into the sign bit.
+  \item The helper functions are private and contain no logic. All the meaning lives in the layer
+    above.
+\end{itemize}

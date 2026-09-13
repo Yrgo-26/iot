@@ -1,0 +1,22 @@
+\chapter{Buses, routing and reliability}
+\label{ch:bussar}
+
+\lecture{Lecture 3}{A protocol of your own}
+
+{\large\itshape Several nodes on one shared wire, and everything that is needed when it is not
+perfect.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item The shared bus, and why broadcast is the norm in embedded systems.
+  \item Routing on DST and SRC, and why it sits in the node and not in the bus.
+  \item An error model that is \emph{deterministic}, and why that is the whole point.
+  \item ACK and NACK, timeout, retransmission --- and the duplicates that follow.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/03/bus}
+\input{chapters/03/errors}
+\input{chapters/03/reliability}
+\input{chapters/03/summary}
+\input{chapters/03/exercises}

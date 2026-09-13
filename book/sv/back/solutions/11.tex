@@ -1,0 +1,66 @@
+\section*{Kapitel 11 --- Testning utan hårdvara}
+\addcontentsline{toc}{section}{Kapitel 11 --- Testning utan hårdvara}
+
+\solution{ex:11:1}{Få sviten grön}
+Uppgiften ber om kod. Loggen är däremot poängen: skriv ned vad testnamnet sa, var buggen låg, och
+hur lång tid det tog.
+
+Det man brukar se är att tiden faller kraftigt under uppgiftens gång, och skälet är inte att
+buggarna blir enklare utan att man slutar gissa. Arbetsgången i \secref{sec:debugging} --- testnamn,
+index, förväntat värde, och \emph{först därefter} sin egen kod --- är hela skillnaden.
+
+\solution{ex:11:2}{Vilken dubblare fångar vad?}
+\ans{a} \textbf{Scripted.} De inspelade byten hamnar i fel transaktion, vilket syns direkt.
+\code{BankTransport} skriver lydigt in värdena i de register kommandobyten pekar ut och märker
+ingenting.
+\ans{b} \textbf{Båda.} Scripted ser att den skickade byten är \code{01} där testet väntar
+\code{00}; Bank ser att felbiten aldrig går ned.
+\ans{c} \textbf{Bara Bank.} Ur den skriptade transportens synvinkel skickades exakt rätt bytes ---
+felet ligger i vad drivrutinen lämnar ifrån sig i \code{frame.data}, inte i vad den skickade.
+\ans{d} \textbf{Båda.} Scripted saknar \code{RX_ACK}-transaktionen i inspelningen; Bank ser att
+RX-giltig står kvar och att nästa \code{receive()} ger samma frame.
+\ans{e} \textbf{Bara Bank}, indirekt. Scripted kontrollerar vad som \emph{skickades}, och den
+byten skickas korrekt --- felet är att svaret sätts ihop fel. Bank ger tillbaka värden som inte
+stämmer med vad som skrevs, så någon läsning blir fel.
+\ans{f} \textbf{Båda.} Scripted ser att transaktioner går ut trots att framen är ogiltig; Bank ser
+att registren skrivs.
+\ans{g} \textbf{Ingen.} Och det är precis därför raden är med: ett kopplingsfel är osynligt för
+varje test som körs på laptopen, oavsett hur bra testdubblaren är. Det är vad
+\kapref{ch:bringup} finns för, och skälet till att steg 1 i bring-up-stegen är en loopback.
+
+\solution{ex:11:3}{Läs sviten som kravspecifikation}
+\ans{a} Testfallet som kontrollerar \code{TX_DATA_LO}-transaktionen vid en \code{send()} av
+\code{id = 0x123}, \code{dlc = 2}, data \code{AA BB}. Dess fem \code{EXPECT_EQ} är exemplets fem
+bytes, skrivna som ett krav.
+\ans{b} Fallet som skickar en frame med \code{dlc = 9} och kontrollerar att den inspelade
+byteströmmen är \emph{tom}, alltså att inga transaktioner alls gick ut. Det kontrollerar inte bara
+returvärdet utan att valideringen sker \emph{först}.
+\ans{c} Fördelningen ska luta mot \code{BankTransport} för beteende och \code{ScriptedTransport}
+för protokoll --- ungefär som tabellen i \secref{sec:twodoubles}. Ser man bara den ena i sviten
+saknas en hel klass av buggar.
+
+\solution{ex:11:4}{Hela stacken}
+Uppgiften ber om att köra ett testfall; frågorna besvaras här.
+\ans{a} Noll. \code{EchoNode} är oförändrad sedan \kapref{ch:komponent}.
+\ans{b} Att \code{EchoNode} beror på \code{driver::can::Interface} och ingenting annat. Både
+\code{Stub} och \code{Spi} uppfyller det kontraktet, så bytet är en enda rad i testets
+Arrange-del.
+\ans{c} Allt. \code{EchoNode} hade behövt inkludera \code{spi.h}, och därmed dragit in
+\code{ByteTransport} och hela transportlagret. Testet hade behövt en transport för att kunna
+konstruera komponenten, och komponenttestet i \kapref{ch:komponent} --- som körs helt utan
+transport --- hade inte gått att skriva.
+
+\solution{ex:11:5}{Vad återstår}
+Minst dessa, och den sista är den som brukar glömmas:
+
+\begin{itemize}
+  \item Att \textbf{tolkningen} av kontraktet är rätt. Sviten är skriven av en människa som läste
+    samma dokument som du.
+  \item Att \textbf{hårdvarugruppen} tolkat det likadant. Deras testbänkar är skrivna mot samma
+    dokument, av någon annan.
+  \item Att \textbf{kopplingen} är rätt --- en omkastad \code{MOSI}/\code{MISO} är osynlig här.
+  \item Att \textbf{tidsbudgeten} håller. \code{BankTransport} svarar omedelbart.
+  \item Att du \textbf{pollar tillräckligt ofta} för att inte tappa frames.
+  \item Att \code{AvrSpiTransport} fungerar. Den är den enda klassen i projektet som inget
+    automattest täcker, eftersom den pratar med ett fysiskt register.
+\end{itemize}

@@ -1,0 +1,78 @@
+\section{From buffer to stream}
+\label{sec:frombuffer}
+
+In \kapref{ch:frames} we assumed that a complete frame was sitting in a buffer. It never is.
+
+A serial link delivers one byte at a time, whenever it arrives, and a node waiting for the next
+byte must not stop and wait --- it has other things to do. Reception therefore has to be
+\textbf{incremental}: take one byte, do whatever can be done with it, and return.
+
+That is exactly what a state machine is for.
+
+\subsection{The states}
+
+One state per field, plus one meaning done:
+
+\begin{console}
+WaitForSof1 -> WaitForSof2 -> WaitForLen  -> WaitForType -> WaitForDst
+            -> WaitForSrc  -> WaitForSeq1 -> WaitForSeq2 -> WaitForPayload
+            -> WaitForChk1 -> WaitForChk2 -> Ready
+\end{console}
+
+The parser's public interface is small:
+
+\begin{cppcode}
+class Parser final
+{
+public:
+    /** Feed the parser one byte. Returns false on a parse error. */
+    bool processByte(std::uint8_t byte) noexcept;
+
+    /** True when a complete frame has been framed. */
+    bool isFrameReady() const noexcept;
+
+    /** Validate and copy out the framed data. */
+    bool extractFrame(Frame& frame) const noexcept;
+
+    /** Discard any partial frame and start over. */
+    void reset() noexcept;
+};
+\end{cppcode}
+
+\subsection{Two responsibilities, deliberately kept apart}
+
+Note that \code{isFrameReady()} and \code{extractFrame()} are two different things, and that this
+is deliberate:
+
+\begin{itemize}
+  \item \code{isFrameReady()} says that the \textbf{framing} is done --- the right number of
+    bytes have arrived, in the right places.
+  \item \code{extractFrame()} says that the frame is \textbf{valid} --- SOF is right, the length
+    is plausible, the type exists, and the checksum adds up.
+\end{itemize}
+
+A frame can be fully framed and still be broken. That is the normal case when something has gone
+wrong on the wire, and that is why the two questions have to be asked separately.
+
+\begin{cppcode}
+bool Parser::extractFrame(Frame& frame) const noexcept
+{
+    if (!isFrameReady()) { return false; }
+
+    // Deserialize validates SOF, payload length, frame type and checksum, so a frame that was
+    // framed correctly but arrived corrupted is rejected here.
+    return frame.deserialize(myBuf, static_cast<std::size_t>(myParsedBytes));
+}
+\end{cppcode}
+
+The validation therefore lives in \code{Frame::deserialize()} and not in the state machine. That
+is no accident: the state machine knows where the fields \emph{are}, the frame knows what they
+\emph{mean}, and mixing the two responsibilities gives you a parser that has to change every time
+the protocol does.
+
+\begin{aside}
+\note \code{extractFrame()} is \code{const} and therefore cannot reset the parser. That is a
+deliberate choice: the caller knows whether it wants to try again or throw the frame away, and
+calls \code{reset()} itself. The same pattern returns in the driver: a method reports, the caller
+decides.
+\end{aside}

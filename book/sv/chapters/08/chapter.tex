@@ -1,0 +1,19 @@
+\chapter{SPI och transaktionsprotokollet}
+\label{ch:spi}
+
+\lecture{Föreläsning 8}{CAN-drivrutinen}
+
+{\large\itshape Kontraktets andra halva: hur registren faktiskt nås.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item SPI på fyra ledningar, och varför full duplex spelar roll.
+  \item Transaktionen: en kommandobyte plus fyra databytes, alltid exakt fem.
+  \item Låsning vid läsning, verkställande vid skrivning, avbrott på \code{SS}.
+  \item Vad det kostar i tid, och varför SPI-länken är flaskhalsen.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/08/transaction}
+\input{chapters/08/summary}
+\input{chapters/08/exercises}

@@ -1,0 +1,48 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Hitta framen}{Avkodning}
+\label{ex:2:1}
+En nod tar emot följande byte-ström:
+
+\begin{console}
+32 74 00 FF A5 F7 03 03 25 17 7F 05 10 20 30 02 C2
+\end{console}
+
+\begin{enumerate}[a)]
+  \item Vid vilket index börjar framen?
+  \item Vilka bytes tillhör den, från SOF till och med CHK?
+  \item Vad ska parsern göra med bytesen före?
+  \item Vilken typ har framen, och vilka adresser går den mellan?
+\end{enumerate}
+
+\exercise{SOF-fällan}{Resonemang}
+\label{ex:2:2}
+Parsern står i \code{WaitForSof2} och tar emot \code{0xA5}.
+\begin{enumerate}[a)]
+  \item Vad gör den naiva implementationen, och vad går förlorat?
+  \item Vad ska den göra i stället?
+  \item Konstruera en byte-ström där skillnaden avgör om en giltig frame hittas eller inte.
+\end{enumerate}
+
+\exercise{Tappad byte}{Avkodning}
+\label{ex:2:3}
+Samma frame som i övning \ref{ex:2:1}, men byten \code{0x20} tappas på vägen.
+\begin{enumerate}[a)]
+  \item Vilket fält läser parsern som checksumma?
+  \item Kommer \code{isFrameReady()} att bli sann?
+  \item Vad returnerar \code{extractFrame()}, och varför?
+  \item I vilket tillstånd står parsern efteråt, och vad krävs för att den ska hitta nästa frame?
+\end{enumerate}
+
+\exercise{Längdfältet}{Resonemang}
+\label{ex:2:4}
+En parser kontrollerar inte längdfältet mot buffertens storlek.
+\begin{enumerate}[a)]
+  \item Konstruera en byte-ström som får den att skriva utanför sin buffert.
+  \item Varför räcker det inte att kontrollera längden i \code{extractFrame()}?
+  \item Vilken allmän regel följer av det, och var i \kapref{ch:driver} gäller samma regel igen?
+\end{enumerate}

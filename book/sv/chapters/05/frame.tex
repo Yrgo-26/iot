@@ -1,0 +1,73 @@
+\section{\texorpdfstring{\code{driver::can::Frame}}{driver::can::Frame}}
+\label{sec:framecls}
+
+Registerkartan i \kapref{ch:can} säger exakt vad hårdvaran kan skicka och ta emot, och det är inte
+mycket: en identifierare, en längd och upp till åtta databytes. Klassen speglar det:
+
+\begin{cppcode}
+namespace driver::can
+{
+/**
+ * @brief A single CAN frame: identifier, data length code and payload.
+ */
+struct Frame
+{
+    /** Maximum number of payload bytes in a CAN frame. */
+    static constexpr std::uint8_t MaxDataLen{8U};
+
+    std::uint16_t id{};               /**< CAN identifier, 11 bits (0x000 - 0x7FF). */
+    std::uint8_t  dlc{};              /**< Data length code, 0 - 8. */
+    std::uint8_t  data[MaxDataLen]{}; /**< Payload. */
+};
+
+/**
+ * @brief Check whether a frame is valid, i.e. whether the hardware can send it.
+ */
+[[nodiscard]] constexpr bool isValid(const Frame& frame) noexcept
+{
+    return (frame.id <= 0x7FFU) && (frame.dlc <= Frame::MaxDataLen);
+}
+
+} // namespace driver::can
+\end{cppcode}
+
+Det är hela filen. Ingen \code{.cpp}.
+
+\subsection{Varför en aggregate}
+
+\code{Frame} har medvetet ingen konstruktor, destruktor eller medlemsfunktion. Skälen, i tur och
+ordning:
+
+\textbf{Den är data, inte beteende.} En frame är något som flyttas: från applikationen till
+drivrutinen, från drivrutinen till fyra register, från registren ut på bussen.
+
+\textbf{Aggregate-initiering är läsbar.} Med aggregaten fungerar
+\code{Frame frame{0x123U, 2U, {0xAAU, 0xBBU}}}. Lägg till en enda användardeklarerad konstruktor
+och den raden slutar kompilera. Testerna du möter från och med nästa kapitel är fulla av sådana
+rader.
+
+\textbf{Default member initialization gör \code{Frame f{}} säker.} \code{{}} efter varje medlem
+betyder att en default-konstruerad frame har nollställda fält. Utan dem hade \code{receive()}
+kunnat lämna ifrån sig skräp i de bytes den inte fyllde.
+
+\subsection{\texorpdfstring{\code{static constexpr}}{static constexpr}, inte \texorpdfstring{\code{\#define}}{define}}
+
+\code{MaxDataLen} har en \textbf{typ}, en \textbf{räckvidd} och finns i \textbf{debuggern}. En
+\code{#define} har inget av det, och gäller dessutom från raden den står på till filens slut, tvärs
+igenom varje header som inkluderas efteråt.
+
+Den används dessutom som arraystorlek, vilket gör att arrayens storlek och gränskontrollen i
+\code{isValid()} garanterat är samma tal.
+
+\subsection{Varför \texorpdfstring{\code{isValid()}}{isValid()} är en fri funktion}
+
+Två skäl. Den håller aggregaten intakt --- en medlemsfunktion är första steget mot en klass med
+invarianter, och nästa steg är en konstruktor. Och den hör till \emph{drivrutinen}, inte till
+datan: regeln kommer från den här hårdvarans registerbredder, inte från CAN som begrepp.
+
+\begin{aside}
+\note[Regel] Hårdvaran validerar ingenting. Drivrutinen \textbf{måste} därför validera --- och
+\textbf{bara} drivrutinen. Frestelsen att lägga en kontroll till i applikationen "för säkerhets
+skull" ska motstås: två kopior av samma regel är två saker som ska hållas i synk, och den dag
+\code{MaxDataLen} ändras kommer bara den ena att ändras med.
+\end{aside}

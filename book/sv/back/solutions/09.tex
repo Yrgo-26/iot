@@ -1,0 +1,52 @@
+\section*{Kapitel 9 --- Transportsömmen och registeråtkomsten}
+\addcontentsline{toc}{section}{Kapitel 9 --- Transportsömmen}
+
+\solution{ex:9:1}{Förutsäg}
+\ans{a} \code{RegTxDataHi} har index 4. Skrivning: \code{CmdWrite | 4} = \code{0x84}. Läsning:
+bara indexet, alltså \code{0x04}.
+\ans{b} \code{83 AA BB 00 00} --- kommandobyten \code{CmdWrite | 3}, sedan värdet MSB först.
+\ans{c} \code{0x12345678}. Den första byten, \code{0xFF}, är svaret på kommandobyten och kastas;
+de fyra följande sätts ihop.
+\ans{d} Du får \code{0xFF123456}: värdet skiftas en byte, den sista databyten faller bort, och
+skräpbyten hamnar överst. Symptomet är registervärden som ser ut att vara $256$ gånger för stora
+med en oförklarlig \code{0xFF} i toppen.
+
+\solution{ex:9:2}{Teckenutvidgningen}
+Uppgiften ber om en kodändring; frågorna besvaras här.
+\ans{a} \code{value} blir \code{0xFFFFFFFF80000000} trunkerat till 32 bitar, alltså
+\code{0x80000000} --- men vägen dit går genom odefinierat beteende. \code{transfer()} returnerar
+en \code{std::uint8_t}, som befordras till \code{int}. \code{0x80} skiftat 24 steg åt vänster
+sätter teckenbiten i en 32-bitars \code{int}, och att skifta in i teckenbiten är odefinierat i
+C++17. I praktiken blir resultatet ett negativt tal som sedan konverteras till
+\code{std::uint32_t} med ettor där det inte ska finnas några.
+\ans{b} För varje byte där bit 7 är \emph{låg}, alltså alla värden under \code{0x80}. Koden
+fungerar därför perfekt för små identifierare och små DLC-värden.
+\ans{c} Drivrutinen hade fungerat för \code{id} upp till \code{0x7F} i den översta databyten och
+gått sönder däröver. Konkret: \code{0x123} fungerar, \code{0xAABB} i datafältet gör det inte.
+Vid bring-upen ser det ut som att vissa frames kommer fram och andra inte, beroende på
+\emph{innehållet} --- vilket är ett av de mest förvirrande symptom som finns, eftersom man letar
+efter ett fel i överföringen när felet ligger i en typkonvertering.
+
+\solution{ex:9:3}{En transport att felsöka med}
+Uppgiften ber om kod. Utskriften ska gå att jämföra rad för rad mot exemplet i \kapref{ch:spi}:
+fem bytes mellan ett \code{select} och ett \code{deselect}, kommandobyten först, värdet MSB först.
+
+Två saker är värda att bygga in från början: skriv ut \emph{både} den skickade och den mottagna
+byten på varje rad, så att en läsning går att följa, och räkna transaktionerna, så att en
+\code{send()} går att kontrollera mot de sex den ska kosta.
+
+\solution{ex:9:4}{Lagergränsen}
+\ans{a} Nej. \code{ByteTransport} flyttar bytes och vet ingenting om frames. Ett beroende till
+\code{frame.h} vore det första steget mot att den vet vad den transporterar.
+\ans{b} Nej. Då vore det inte längre en transport utan en registeråtkomst, och den hör hemma i
+\code{Spi} --- som är det enda lager som ska känna till registerkartan.
+\ans{c} Nej, och det här är den som låter mest rimlig. Argumentet för är att transaktionen ändå
+alltid är fem bytes, så varför inte låta transporten sköta den? Argumentet emot är att
+\code{SS}-ramningen och femBytesformatet tillhör \emph{protokollet}, inte överföringen. Läggs de
+i transporten måste varje transportimplementation --- även den skriptade testdubblaren --- kunna
+protokollet, och då finns ingen söm kvar: man kan inte längre byta ut hur bytes flyttas utan att
+samtidigt byta ut vad de betyder.
+\ans{d} Nej. Att testa en privat metod direkt är nästan alltid ett tecken på att den borde vara
+publik, eller på att testet testar fel sak. Här testas den genom \code{send()} och
+\code{receive()}, och genom att inspektera vilka bytes som kom ut --- vilket är precis vad som
+ska vara sant.

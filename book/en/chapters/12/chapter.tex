@@ -1,0 +1,20 @@
+\chapter{The hardware, the transport and the factory}
+\label{ch:avr}
+
+\lecture{Lecture 12}{The CAN driver}
+
+{\large\itshape Down to the bottom: real registers, and the glue that ties it all together.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item \code{volatile}: what it is for, and where it may appear.
+  \item The microcontroller's SPI peripheral, and the three settings that are traps.
+  \item MVIO: how the core runs at 5~V while the SPI wires run at 3.3~V.
+  \item The factory, and the test for whether the architecture holds.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/12/volatile}
+\input{chapters/12/factory}
+\input{chapters/12/summary}
+\input{chapters/12/exercises}

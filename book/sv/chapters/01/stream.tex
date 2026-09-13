@@ -1,0 +1,44 @@
+\section{Problemet med en byte-ström}
+\label{sec:stream}
+
+Två system kopplas ihop med en seriell länk --- UART, RS-485, SPI, vad som helst. Det ena skickar
+bytes, det andra tar emot dem. Det är allt länken gör.
+
+Anta att den sändande noden vill skicka temperaturen 23 grader och luftfuktigheten 45 procent.
+Den skickar två bytes:
+
+\begin{console}
+17 2D
+\end{console}
+
+Mottagaren får två bytes. Och nu kommer frågorna, i tur och ordning:
+
+\begin{itemize}
+  \item \textbf{Var börjar meddelandet?} Om mottagaren kopplades in mitt i en överföring är
+    \code{17} kanske den andra byten i något annat.
+  \item \textbf{Hur långt är det?} Kommer det fler bytes, eller var det allt?
+  \item \textbf{Vad betyder de?} Att \code{17} är temperaturen och \code{2D} fukten är en
+    överenskommelse som inte finns någonstans i strömmen.
+  \item \textbf{Kom de fram hela?} En störning som ändrade \code{17} till \code{16} ser ut precis
+    som en temperatur på 22 grader.
+  \item \textbf{Vem skickade dem, och till vem?} På en buss med fler än två noder är det inte
+    självklart.
+\end{itemize}
+
+Ingen av frågorna går att besvara ur bytesen själva. Svaren måste läggas till, och det som lägger
+till dem är ett \textbf{protokoll}.
+
+\subsection{Frame kontra ström}
+
+En \textbf{frame} är en avgränsad, självbeskrivande enhet i strömmen. Den säger var den börjar,
+hur lång den är, vad den innehåller, vem den kommer från, vem den är till, och om den kom fram
+hel.
+
+Strömmen är fortfarande bara bytes --- det är den alltid. Skillnaden är att bytesen nu är ordnade
+efter en överenskommelse som båda sidor känner till, och som går att kontrollera.
+
+\begin{aside}
+\note Det här är den enda idén i kapitlet, och resten av boken är konsekvenser av den. Både det
+egna protokollet i \kapref{ch:parsning} och CAN i \kapref{ch:can} löser samma fem frågor. De
+skiljer sig i \emph{var} lösningen ligger: i din kod, eller i kisel.
+\end{aside}

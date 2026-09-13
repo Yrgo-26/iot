@@ -1,0 +1,53 @@
+\section*{Chapter 9 --- The transport seam and the register access}
+\addcontentsline{toc}{section}{Chapter 9 --- The transport seam}
+
+\solution{ex:9:1}{Predict}
+\ans{a} \code{RegTxDataHi} has index 4. Write: \code{CmdWrite | 4} = \code{0x84}. Read: just the
+index, that is, \code{0x04}.
+\ans{b} \code{83 AA BB 00 00} --- the command byte \code{CmdWrite | 3}, then the value MSB first.
+\ans{c} \code{0x12345678}. The first byte, \code{0xFF}, is the answer to the command byte and is
+discarded; the four following ones are assembled.
+\ans{d} You get \code{0xFF123456}: the value is shifted by one byte, the last data byte falls off,
+and the junk byte ends up at the top. The symptom is register values that look $256$ times too
+large with an inexplicable \code{0xFF} at the top.
+
+\solution{ex:9:2}{The sign extension}
+The exercise asks for a code change; the questions are answered here.
+\ans{a} \code{value} becomes \code{0xFFFFFFFF80000000} truncated to 32 bits, that is,
+\code{0x80000000} --- but the route there goes through undefined behaviour. \code{transfer()}
+returns a \code{std::uint8_t}, which is promoted to \code{int}. \code{0x80} shifted 24 steps to
+the left sets the sign bit in a 32-bit \code{int}, and shifting into the sign bit is undefined in
+C++17. In practice the result is a negative number that is then converted to \code{std::uint32_t}
+with ones where there should be none.
+\ans{b} For every byte where bit 7 is \emph{low}, that is, all values below \code{0x80}. The code
+therefore works perfectly for small identifiers and small DLC values.
+\ans{c} The driver would have worked for \code{id} up to \code{0x7F} in the topmost data byte and
+broken above that. Concretely: \code{0x123} works, \code{0xAABB} in the data field does not. At
+bring-up it looks as though some frames arrive and others do not, depending on the \emph{content}
+--- which is one of the most confusing symptoms there is, since you go looking for a fault in the
+transfer when the fault is in a type conversion.
+
+\solution{ex:9:3}{A transport to debug with}
+The exercise asks for code. The output should be comparable line by line against the example in
+\kapref{ch:spi}: five bytes between a \code{select} and a \code{deselect}, the command byte first,
+the value MSB first.
+
+Two things are worth building in from the start: print \emph{both} the sent and the received byte
+on every line, so that a read can be followed, and count the transactions, so that a \code{send()}
+can be checked against the six it should cost.
+
+\solution{ex:9:4}{The layer boundary}
+\ans{a} No. \code{ByteTransport} moves bytes and knows nothing about frames. A dependency on
+\code{frame.h} would be the first step towards it knowing what it transports.
+\ans{b} No. Then it would no longer be a transport but a register access, and that belongs in
+\code{Spi} --- the only layer that is to know the register map.
+\ans{c} No, and this is the one that sounds the most reasonable. The argument for is that the
+transaction is always five bytes anyway, so why not let the transport handle it? The argument
+against is that the \code{SS} framing and the five-byte format belong to the \emph{protocol}, not
+to the transfer. Put them in the transport and every transport implementation --- including the
+scripted test double --- has to know the protocol, and then there is no seam left: you can no
+longer swap out how bytes are moved without swapping out what they mean at the same time.
+\ans{d} No. Testing a private method directly is almost always a sign that it ought to be public,
+or that the test is testing the wrong thing. Here it is tested through \code{send()} and
+\code{receive()}, and by inspecting which bytes came out --- which is precisely what has to be
+true.

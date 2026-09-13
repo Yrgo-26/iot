@@ -1,0 +1,54 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Predict}{Calculation}
+\label{ex:9:1}
+Answer before you compile.
+\begin{enumerate}[a)]
+  \item What is the command byte for a write to \code{RegTxDataHi}? For a read of the same?
+  \item Which sequence of five bytes does \code{writeReg(RegTxDataLo, 0xAABB0000U)} produce?
+  \item What does \code{readReg()} return if the transport answers \code{FF 12 34 56 78} to the
+    five \code{transfer()} calls?
+  \item What does it return if you accidentally count all five received bytes?
+\end{enumerate}
+
+\exercise{The sign extension}{Code}
+\label{ex:9:2}
+Write \code{readReg()} \textbf{wrongly} once, with the shift before the cast. Let the transport
+answer so that the first data byte is \code{0x80}.
+\begin{enumerate}[a)]
+  \item What does \code{value} become, and why?
+  \item For which values does the incorrect code work anyway?
+  \item What would the symptom look like if the bug were still there at bring-up? Which \code{id}
+    values would have worked?
+\end{enumerate}
+
+\exercise{A transport to debug with}{Code}
+\label{ex:9:3}
+Write a \code{PrintTransport} that implements \code{ByteTransport} and prints every call:
+\begin{console}
+select
+  -> 81   <- 00
+  -> 00   <- 00
+  -> 00   <- 00
+  -> 01   <- 00
+  -> 23   <- 00
+deselect
+\end{console}
+Compare the output line by line against the example in \kapref{ch:spi}. It is not a test double
+but a debugging tool, and it is worth keeping for the whole project.
+
+\exercise{The layer boundary}{Reasoning}
+\label{ex:9:4}
+True or false, with a justification:
+\begin{enumerate}[a)]
+  \item \code{byte_transport.hpp} may include \code{frame.hpp}.
+  \item \code{ByteTransport} ought to have a method \code{writeRegister(index, value)}.
+  \item \code{ByteTransport} ought to do the whole five-byte transaction in one call.
+  \item \code{readReg()} ought to be public so that the tests can call it directly.
+\end{enumerate}
+Statement c) sounds the most reasonable and is wrong anyway. Why?

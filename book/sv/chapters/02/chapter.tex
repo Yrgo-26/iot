@@ -1,0 +1,20 @@
+\chapter{Byte-parsning}
+\label{ch:parsning}
+
+\lecture{Föreläsning 2}{Ett eget protokoll}
+
+{\large\itshape Verkligheten: data kommer en byte i taget, och ibland kommer fel bytes.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item Varför en parser behövs när framen inte längre ligger färdig i en buffer.
+  \item Parsern som tillståndsmaskin, tillstånd för tillstånd.
+  \item Återhämtning: skräpdata före SOF, tappade bytes, trasig checksumma.
+  \item Var valideringen hör hemma, och varför inte i tillståndsmaskinen.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/02/statemachine}
+\input{chapters/02/robustness}
+\input{chapters/02/summary}
+\input{chapters/02/exercises}

@@ -1,0 +1,157 @@
+\section{\texorpdfstring{\code{volatile}}{volatile}}
+\label{sec:volatile}
+
+So far the code has only touched ordinary memory. This file touches \textbf{hardware}, and at that
+point one of the compiler's fundamental assumptions stops holding.
+
+The compiler assumes that nobody but the program changes a variable. On that assumption the
+following loop is infinite, and the optimiser is allowed to remove it:
+
+\begin{cppcode}
+while ((SPI0.INTFLAGS & SPI_IF_bm) == 0U)
+{
+}
+\end{cppcode}
+
+\code{INTFLAGS} is read once, the result is put in a register, and since nothing in the loop
+changes it the condition is constant. With \code{-O2} the result is either a loop that never ends
+or a loop that is optimised away entirely.
+
+But \code{INTFLAGS} \emph{does change} --- by the peripheral, without the program doing anything.
+\code{volatile} is how you say that: \emph{re-read this variable every time; do not merge reads, do
+not move them, do not remove them.}
+
+In \code{<avr/io.h>} the peripheral registers are already declared \code{volatile}. You do not have
+to write the qualifier --- but you do have to know that it is there, and why.
+
+\subsection{What \texorpdfstring{\code{volatile}}{volatile} is not}
+
+It is \textbf{not} a synchronisation mechanism. It guarantees neither atomicity nor any ordering
+against anything but other \code{volatile} accesses. In threaded code on a host computer
+\code{volatile} is almost always the wrong tool; \code{std::atomic} is the right one.
+
+Here it is about something else: a register that a peripheral changes under the program's nose.
+That is precisely the case \code{volatile} exists for.
+
+\subsection{Where it may appear}
+
+\textbf{Only in the transport's implementation file.}
+
+That is the whole point of the seam in \kapref{ch:byte}. Everything above it --- \code{Spi},
+\code{Stub}, \code{Interface}, \code{EchoNode} --- is ordinary, portable C++ that compiles and runs
+on your laptop. A reviewer who sees \code{volatile} in any other file should ask why.
+
+\section{The SPI peripheral}
+\label{sec:periph}
+
+Four registers are enough for a polled master: one for enable and clock settings, one for the
+mode, one for status flags, and one for data.
+
+\begin{cppcode}
+void AvrSpiTransport::init() noexcept
+{
+    // Route SPI0 to PORTC (ALT1): PC0 = MOSI, PC1 = MISO, PC2 = SCK, PC3 = SS.
+    PORTMUX.SPIROUTEA = PORTMUX_SPI0_ALT1_gc;
+
+    // MOSI, SCK and SS are outputs; MISO is an input. SS idles high.
+    PORTC.DIRSET = PIN0_bm | PIN2_bm | PIN3_bm;
+    PORTC.DIRCLR = PIN1_bm;
+    PORTC.OUTSET = PIN3_bm;
+
+    // Master, MSB first, 4 MHz / 4 = 1 MHz, enabled.
+    SPI0.CTRLA = SPI_MASTER_bm | SPI_PRESC_DIV4_gc | SPI_ENABLE_bm;
+
+    // SPI mode 0, and software-controlled slave select.
+    SPI0.CTRLB = SPI_MODE_0_gc | SPI_SSD_bm;
+}
+\end{cppcode}
+
+Five lines, and three of them are traps:
+
+\textbf{The pin mux.} Without that line the peripheral sits on its default mux, and the four wires
+you connected are completely silent. The symptom is the most confusing there is: the program runs,
+no errors are reported, and the logic analyser shows nothing at all. \textbf{Set it first.}
+
+\textbf{Slave select disable.} Without it the peripheral monitors the \code{SS} pin, and a low
+level there makes the master believe that another master has taken over the bus: it leaves master
+mode. But here it is \emph{your own code} that pulls \code{SS} low on every \code{select()}.
+Without the bit, the driver shoots itself in the foot on the first transaction.
+
+\textbf{The prescaler.} The protocol guarantees nothing above 1~MHz. Do not run faster just
+because you can.
+
+
+
+\subsection{The transport}
+
+\begin{cppcode}
+void AvrSpiTransport::select() noexcept   { PORTC.OUTCLR = PIN3_bm; }
+void AvrSpiTransport::deselect() noexcept { PORTC.OUTSET = PIN3_bm; }
+
+std::uint8_t AvrSpiTransport::transfer(const std::uint8_t byte) noexcept
+{
+    SPI0.DATA = byte;
+
+    while ((SPI0.INTFLAGS & SPI_IF_bm) == 0U)
+    {
+    }
+
+    return SPI0.DATA;
+}
+\end{cppcode}
+
+\textbf{Reading \code{SPI0.DATA} clears the flag.} Skip it and the next \code{transfer()} sees a
+flag that is still set, returns immediately, and reads a byte that has not had time to arrive. The
+symptom is data lagging \textbf{one byte behind} through the whole transaction, which is hard to
+see and easy to mistake for a bit-order error.
+
+\textbf{No delay is needed around \code{SS}.} The protocol requires 60~ns of setup and hold; a
+single port write on a 4~MHz MCU is already several times slower than that.
+
+\section{MVIO: two voltages in the same chip}
+\label{sec:mvio}
+
+This is the most elegant detail in the whole design.
+
+\textbf{The problem:} the MCU board runs at 5~V. The FPGA board's GPIO is 3.3~V and does not
+tolerate 5~V. The usual solution is a level shifter on every wire --- one more component, four more
+connections, and four more things that can be in the wrong place.
+
+\textbf{The solution:} the AVR-DB family has \textbf{MVIO} (\emph{Multi-Voltage I/O}).
+\code{PORTC} is not fed from \code{VDD} like the rest of the chip, but from a pin of its own:
+\code{VDDIO2}.
+
+Connect \code{VDDIO2} to the FPGA board's 3.3~V rail, and the whole of \code{PORTC} becomes a
+3.3-volt domain --- while the core and the other ports run unchanged at 5~V. \textbf{No level
+shifter.}
+
+That is why the pin configuration is part of the contract and not each group's own choice: switch
+to the default mux and the wires end up in the \code{VDD} domain, and then the level shifter is
+needed again --- or the FPGA input breaks.
+
+\begin{aside}
+\note \code{VDDIO2} has to be powered \textbf{before} \code{PORTC} does anything at all. If it is
+not, the port's behaviour is undefined. The MVIO status register says whether it is, and checking
+it at start-up is the single most valuable line of code ahead of bring-up: a forgotten
+\code{VDDIO2} connection looks exactly like a broken SPI implementation, and that check tells the
+two cases apart in a second.
+\end{aside}
+
+\section{Freestanding C++}
+\label{sec:freestanding}
+
+The firmware is built for a \textbf{freestanding} target. Part of C++ does not come along:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Not available} & \thead{What you do instead} \\ \midrule
+The heap (\code{new}, \code{std::vector}) & Statically allocated objects; everything has a known
+  size. \\
+Exceptions & Return codes --- which the whole interface is already built on. \\
+RTTI (\code{dynamic_cast}) & Virtual functions are enough; you never cast downwards. \\
+\code{<iostream>} & UART output, or an LED. \\
+\end{booktable}
+
+\textbf{Note that none of that affects the design.} The interface returns \code{bool} instead of
+throwing. \code{Frame} is an aggregate with a static size. No class uses the heap. That was not
+luck --- the project's coding conventions are written for a freestanding target from the start, and
+this is the chapter where that pays off.

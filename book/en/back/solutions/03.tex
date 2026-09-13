@@ -1,0 +1,51 @@
+\section*{Chapter 3 --- Buses, routing and reliability}
+\addcontentsline{toc}{section}{Chapter 3 --- Buses, routing and reliability}
+
+\solution{ex:3:1}{Routing}
+\ans{a} In the node. A physical wire delivers voltage levels; it can neither read addresses nor
+know that frames exist. Every node therefore has to compare \code{DST} with its own address
+itself.
+\ans{b} Ignore it. The frame is not faulty --- it is addressed to somebody else.
+\ans{c} Because \code{Nack} means \emph{something went wrong}. On a bus with $n$ nodes every frame
+would trigger $n-2$ false negative acknowledgements, and the sender would not be able to tell them
+from a real error.
+
+\solution{ex:3:2}{The error model}
+\ans{a} \textbf{Dropped byte:} no --- every following field is shifted, and \code{LEN} is read from
+the wrong byte. \textbf{Flipped bit:} yes --- the structure is intact, only the content is wrong.
+\textbf{Delay:} yes --- nothing in the frame is affected.
+\ans{b} The first two are caught by the checksum, in \code{deserialize()}. The third should be
+caught by nothing, since nothing is wrong.
+\ans{c} After a dropped byte or a flipped bit the parser is left with a rejected frame and has to
+be reset; after a delay it is where it should be.
+
+So the delay should cause no problem. If it does anyway, the parser has a hidden timing dependency
+--- it assumes something about \emph{when} bytes arrive --- and that is a bug which does not show
+until the system is moved to slower hardware.
+
+\solution{ex:3:3}{A lost acknowledgement}
+\ans{a} A gets no \code{Ack}, the timer expires, and A retransmits the frame with the
+\textbf{same} \code{SEQ}.
+\ans{b} B sees a frame it has already processed: the same sender, the same sequence number.
+\ans{c} B is to \textbf{send \code{Ack} again} and \textbf{not} run the application logic a second
+time. The command has already been carried out.
+\ans{d} A would have timed out again and retransmitted again, in a cycle broken only by the
+attempt counter running out. That is why the missing acknowledgement is the dangerous error, not
+the missing frame.
+
+\solution{ex:3:4}{The timeout value}
+\ans{a} Unnecessary retransmissions and thereby more duplicates, plus increased bus load precisely
+when the bus is already loaded.
+\ans{b} Slow error detection: the system stands waiting for an answer that never comes, and feels
+hung.
+\ans{c} The worst-case time for a round trip: the transmission time, the receiver's processing
+time and the acknowledgement's way back. A node rarely knows it, since it depends on the whole
+system's load and on how fast the other node is --- which is exactly what varies.
+
+\solution{ex:3:5}{The chain}
+\textbf{The checksum} detects that a frame is broken, but says nothing about frames that never
+arrived. \textbf{The ACK} confirms delivery, but does not help when the acknowledgement itself
+fails to arrive. \textbf{The timeout} detects the missing acknowledgement, but does nothing about
+it. \textbf{Retransmission} fixes it, and thereby creates duplicates. \textbf{Duplicate detection}
+cleans up after the retransmission, and creates no new problem --- which is why the chain ends
+there.

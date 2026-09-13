@@ -1,0 +1,50 @@
+\section{The bus and the routing}
+\label{sec:bus}
+
+Two nodes can be wired directly to each other. Five cannot --- that would be ten connections, and
+the number grows quadratically. The solution is a \textbf{shared bus}: every node on the same
+wire.
+
+That has an immediate consequence: \textbf{everyone hears everything}. A bus is broadcast, and
+that is not something you can opt out of. If you want a message to reach a particular node, you
+have to write it in the message.
+
+\subsection{Where the routing sits}
+
+The bus's only job is to deliver every byte to every node. It does not read addresses, it knows
+nothing about frames, it does not even know that a protocol exists.
+
+\textbf{The routing sits in the node.} Every node receives every byte, feeds it to its parser,
+and once a complete frame has been extracted compares the frame's \code{DST} with its own
+address:
+
+\begin{cppcode}
+void Node::tick() noexcept
+{
+    if (!myParser.isFrameReady()) { return; }
+
+    Frame frame{};
+    if (!myParser.extractFrame(frame)) { myParser.reset(); return; }
+    myParser.reset();
+
+    if (frame.dstAddr != myAddr) { return; }   // not for us
+    handleFrame(frame);
+}
+\end{cppcode}
+
+Putting the routing in the node instead of in the bus is not a simplification made for the
+course's sake. It is how a real bus works: a wire cannot read addresses.
+
+\subsection{DST and SRC}
+
+\code{DST} says who the frame is for. \code{SRC} says who it came from, and is needed so that the
+receiver can answer --- without it, it does not know where the answer should go.
+
+\code{SEQ} pairs a reply with its request. A node that has sent three requests and gets one reply
+has to be able to tell which of them it answers.
+
+\begin{aside}
+\note CAN does all of this completely differently: there is no destination address at all, and
+the identifier describes the \emph{content} of the message instead of its receiver. The comparison
+is made in \kapref{ch:can}, and it is one of the most instructive in the course.
+\end{aside}

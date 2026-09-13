@@ -1,0 +1,47 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Lösningarna till uppgifterna som inte ber om kod står i \hyperref[ch:losningar]{appendix~A}.
+Koden publiceras i kursrepot efter föreläsningen.
+
+\exercise{Bygg en frame}{Räkning}
+\label{ex:1:1}
+En nod med adress \code{0x17} skickar en \code{StatusRequest} till en temperatursensor med adress
+\code{0x25}. Sekvensnumret är \code{0x7F05}.
+\begin{enumerate}[a)]
+  \item Skriv upp hela framen byte för byte, på hexadecimal form.
+  \item Sensorn svarar med ett \code{StatusResponse} som innehåller temperaturen \code{0x16}
+    (en byte). Skriv upp den framen också.
+  \item Hur många bytes är den kortast möjliga framen i det här protokollet?
+\end{enumerate}
+
+\exercise{Fälten och deras syfte}{Resonemang}
+\label{ex:1:2}
+För vart och ett av fälten SOF, LEN, TYPE, DST, SRC, SEQ och CHK: beskriv i en mening vad som
+går sönder om fältet tas bort.
+
+Två av dem går att ta bort utan att protokollet slutar fungera i ett system med exakt två noder.
+Vilka, och varför?
+
+\exercise{Endianness}{Resonemang}
+\label{ex:1:3}
+En grupp serialiserar sekvensnumret genom att kopiera minnet direkt:
+
+\begin{cppcode}
+std::memcpy(&buf[Offset::Seq], &frame.seqNr, sizeof(frame.seqNr));
+\end{cppcode}
+
+\begin{enumerate}[a)]
+  \item Vad hamnar i bufferten på en x86-maskin om \code{seqNr} är \code{0x7F05}?
+  \item Koden fungerar ändå felfritt i deras egna tester. Varför?
+  \item När går den sönder?
+\end{enumerate}
+
+\exercise{Checksummans gränser}{Resonemang}
+\label{ex:1:4}
+Kursens checksumma är en summa av bytes.
+\begin{enumerate}[a)]
+  \item En störning byter plats på två databytes. Upptäcks det?
+  \item En störning ökar en byte med 1 och minskar en annan med 1. Upptäcks det?
+  \item Ge ett exempel på en ändring i framen ovan som checksumman \emph{inte} upptäcker.
+\end{enumerate}

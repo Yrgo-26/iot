@@ -1,0 +1,21 @@
+\chapter{CAN, the register map and the architecture}
+\label{ch:can}
+
+\lecture{Lecture 4}{The CAN driver}
+
+{\large\itshape The hardware takes over, and the project begins.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item Which mechanisms from \kapref{ch:bussar} CAN performs in silicon, and where.
+  \item The controller you write a driver for, and why a register layer sits in between.
+  \item The register map: what every register means and how every status bit is cleared.
+  \item The layered architecture, and who is allowed to know what.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/04/handover}
+\input{chapters/04/regmap}
+\input{chapters/04/architecture}
+\input{chapters/04/summary}
+\input{chapters/04/exercises}

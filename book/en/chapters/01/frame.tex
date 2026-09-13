@@ -1,0 +1,122 @@
+\section{The fields of the frame}
+\label{sec:frame}
+
+The course's protocol uses the following structure. The number is the length of the field in
+bytes:
+
+\begin{console}
+SOF (2) | LEN (1) | TYPE (1) | DST (1) | SRC (1) | SEQ (2) | DATA (N) | CHK (2)
+\end{console}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Field} & \thead{Bytes} & \thead{What it solves} \\ \midrule
+SOF & 2 & \emph{Where does the message begin?} A fixed pattern, \code{0xA5F7}, marking the
+  start. \\
+LEN & 1 & \emph{How long is it?} The number of data bytes that follow. \\
+TYPE & 1 & \emph{What does it mean?} The kind of message. \\
+DST & 1 & \emph{To whom?} The receiver's address. \\
+SRC & 1 & \emph{From whom?} The sender's address. \\
+SEQ & 2 & A sequence number, which makes it possible to pair a reply with its request and to
+  recognise a duplicate. \\
+DATA & N & The payload, \code{LEN} bytes long. \\
+CHK & 2 & \emph{Did it arrive intact?} The sum of all preceding bytes. \\
+\end{booktable}
+
+The frame types in the course's protocol:
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{Type} & \thead{Value} \\ \midrule
+\code{Ping} & \code{0x00} \\
+\code{Pong} & \code{0x01} \\
+\code{StatusRequest} & \code{0x02} \\
+\code{StatusResponse} & \code{0x03} \\
+\code{Ack} & \code{0x04} \\
+\code{Nack} & \code{0x05} \\
+\end{narrowtable}
+
+\subsection{Why SOF is two bytes}
+
+One byte is not enough. Whichever value you pick will sooner or later turn up in the middle of a
+payload, and then the receiver finds a frame that does not exist.
+
+Two bytes make it unlikely rather than impossible --- \code{0xA5F7} can still occur in data. That
+is why SOF on its own is never sufficient: the receiver also has to check that the length is
+plausible and that the checksum is correct before it believes the frame. \Kapref{ch:parsning}
+builds that check.
+
+\subsection{Why LEN is needed when DATA runs out anyway}
+
+Because the receiver reads one byte at a time and cannot look ahead. Without a length field it
+never knows whether the next byte is data or checksum.
+
+The alternative would be an end marker, but then that pattern has to be impossible in the payload
+--- which requires re-encoding the data. CAN solves the same problem with bit stuffing (see the
+course's CAN book); here a length field is enough.
+
+\subsection{The checksum}
+
+The course's checksum is simple: a \textbf{16-bit sum of every byte up to the CHK field}.
+
+\begin{cppcode}
+std::uint16_t computeChecksum(const std::uint8_t* buf, const std::size_t chkOffset) noexcept
+{
+    std::uint16_t checksum{};
+    for (std::size_t i{}; i < chkOffset; ++i)
+    {
+        checksum += buf[i];
+    }
+    return checksum;
+}
+\end{cppcode}
+
+It detects single bit errors and most short error bursts. What it does not detect is two bytes
+swapping places, or one byte increasing by one while another decreases by one --- the sum is the
+same. A CRC does better, and that is what CAN uses.
+
+\begin{aside}
+\note The checksum says that the frame arrived \emph{intact}. It says nothing about it arriving
+\emph{at all}. The difference between integrity and delivery guarantee is the whole second half of
+\kapref{ch:bussar}, and it is worth keeping the two apart from the start.
+\end{aside}
+
+\subsection{Serialisation and endianness}
+
+To serialise is to write the fields of the frame into a buffer in the right order. Fields wider
+than a byte --- SOF, SEQ and CHK --- have to be written in a definite byte order, and the course's
+protocol uses \textbf{big-endian}: most significant byte first.
+
+\begin{console}
+SEQ = 0x7F05  ->  7F 05      (big-endian, what the protocol says)
+              ->  05 7F      (little-endian, what your x86 does in memory)
+\end{console}
+
+This is the classic bug in all protocol code, and it is unpleasant for two reasons. It is
+invisible when both sides have the same bug, and it looks like random corruption when they do
+not: \code{0x0005} becomes \code{0x0500}, that is, 1280 instead of 5.
+
+So never write out a multi-byte variable by copying memory. Write it byte by byte, with explicit
+shifts:
+
+\begin{cppcode}
+// Big-endian: most significant byte first, whatever the host's byte order is.
+buf[offset + 0U] = static_cast<std::uint8_t>(value >> 8U);
+buf[offset + 1U] = static_cast<std::uint8_t>(value);
+\end{cppcode}
+
+\subsection{A complete example}
+
+A \code{StatusRequest} from address \code{0x17} to address \code{0x25}, with sequence number
+\code{0x7F05} and no payload:
+
+\begin{console}
+A5 F7 00 02 25 17 7F 05 02 5E
+|---| |  |  |  |  |---| |---|
+SOF  LEN TYPE      SEQ   CHK
+        DST--^  ^--SRC
+\end{console}
+
+The checksum: $\mathtt{A5} + \mathtt{F7} + \mathtt{00} + \mathtt{02} + \mathtt{25} + \mathtt{17} +
+\mathtt{7F} + \mathtt{05} = 606 = \mathtt{0x025E}$.
+
+Note that \code{DST} comes before \code{SRC}. The order is arbitrary but has to be the same on
+both sides, and mixing them up gives you a system where every node stubbornly answers itself.

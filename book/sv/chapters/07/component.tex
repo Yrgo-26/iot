@@ -1,0 +1,155 @@
+\section{Buggen ett enhetstest inte kan se}
+\label{sec:interaction}
+
+Ett \textbf{enhetstest} testar en enhet isolerad. Ett \textbf{komponenttest} testar flera delar som
+samverkar, fortfarande utan hårdvara: här \code{app::EchoNode} plus \code{driver::can::Stub},
+kopplade genom \code{driver::can::Interface}.
+
+Skillnaden syns tydligast i vilken sorts bugg de fångar. Anta att \code{run()} skrivs så här:
+
+\begin{cppcode}
+Frame frame{};
+if (!myDriver.receive(frame)) { return; }
+
+Frame response{};
+response.id  = myResponseId;
+response.dlc = myDriver.receive(frame) ? frame.dlc : 0U;   // fel: anropar receive() igen
+\end{cppcode}
+
+Varje enhetstest är fortfarande grönt. \code{Stub} gör exakt det den lovar, och \code{Frame}
+likaså. Buggen ligger i \textbf{interaktionen}: det andra anropet konsumerar tillståndet det första
+lämnade.
+
+\textbf{Det är hela poängen.} Interaktionsbuggar --- ett anrop för mycket, ett anrop i fel ordning,
+ett returvärde som ignoreras --- är den vanligaste sortens fel i drivrutinskod, och de bor mellan
+enheterna, inte i dem.
+
+\section{\texorpdfstring{\code{app::EchoNode}}{app::EchoNode}}
+\label{sec:echonode}
+
+En applikationskomponent som gör en sak: läser en frame och ekar tillbaka den med ett annat ID.
+
+\begin{cppcode}
+namespace driver::can { class Interface; }
+
+namespace app
+{
+class EchoNode
+{
+public:
+    explicit EchoNode(driver::can::Interface& driver, std::uint16_t responseId) noexcept;
+
+    void run() noexcept;
+    [[nodiscard]] std::uint32_t echoCount() const noexcept;
+
+private:
+    driver::can::Interface& myDriver; /**< Driver used for all traffic. Not owned. */
+    std::uint16_t myResponseId;
+    std::uint32_t myEchoCount;
+};
+} // namespace app
+\end{cppcode}
+
+\subsection{Lagergränsen, i en rad}
+
+Lägg märke till vad headern \emph{inte} inkluderar: \code{stub.hpp}, \code{spi.hpp},
+\code{byte_transport.hpp}. Bara en framåtdeklaration.
+
+\textbf{Den raden är arkitekturens gräns uttryckt i kod.} En granskare som ser
+\code{#include "driver/can/spi.hpp"} här ska stoppa PR:en direkt. Regeln, som gäller hela projektet:
+ingen fil ovanför \code{driver/can/interface.hpp} får innehålla ordet SPI.
+
+\subsection{Dependency injection}
+
+\code{EchoNode} \textbf{skapar inte} sin drivrutin. Den får den. Alternativet är värt att titta på
+för att se vad det kostar:
+
+\begin{cppcode}
+class EchoNode
+{
+public:
+    EchoNode() : myDriver{} {}   // skapar sin egen Spi
+private:
+    driver::can::Spi myDriver;   // nej
+};
+\end{cppcode}
+
+Den varianten är omöjlig att testa: det finns inget sätt att ge den en stubb, alltså inget sätt
+att köra den utan ett FPGA på skrivbordet. Den binder dessutom applikationen till en konkret
+drivrutinstyp, vilket gör hela \code{Interface} meningslös.
+
+\textbf{Varför en referens och inte en pekare?} En referens kan inte vara null och kan inte bytas
+efter konstruktion. Båda är egenskaper vi vill ha.
+
+\textbf{Varför inte \code{std::unique_ptr}?} Därför att \code{EchoNode} inte \emph{äger}
+drivrutinen. Ägandet ligger hos factoryn i \kapref{ch:avr}, och drivrutinens livstid är längre än
+komponentens. Doxygen-kommentaren säger uttryckligen "Not owned", och det är värt att skriva ut.
+
+\subsection{Två detaljer i \texorpdfstring{\code{run()}}{run()}}
+
+\textbf{Loopen går till \code{frame.dlc}, inte till \code{MaxDataLen}.} Att kopiera åtta bytes hade
+"fungerat" eftersom resten ändå är nollor --- men \code{response.dlc} säger hur många som gäller,
+och kod som kopierar mer än den säger sig kopiera slutar stämma när någon annan förutsättning
+ändras. Exakt samma resonemang som maskeringen i \kapref{ch:driver}.
+
+\textbf{\code{myEchoCount} räknas upp bara när \code{send()} lyckades.} Räknaren betyder "ekade
+frames", inte "försök".
+
+\section{Att läsa komponenttestet}
+\label{sec:readcomp}
+
+\begin{cppcode}
+TEST(EchoNode, echoesInjectedFrameWithResponseId)
+{
+    // Arrange.
+    driver::can::Stub stub{};
+    app::EchoNode node{stub, 0x200U};
+
+    driver::can::Frame incoming{};
+    incoming.id      = 0x123U;
+    incoming.dlc     = 2U;
+    incoming.data[0] = 0xAAU;
+    incoming.data[1] = 0xBBU;
+    stub.inject(incoming);
+
+    // Act.
+    node.run();
+
+    // Assert.
+    driver::can::Frame echoed{};
+    EXPECT_TRUE(stub.receive(echoed));
+    EXPECT_EQ(echoed.id, 0x200U);
+    EXPECT_EQ(node.echoCount(), 1U);
+}
+\end{cppcode}
+
+Testet har två roller samtidigt: det \textbf{matar in} trafik med \code{inject()}, och det
+\textbf{inspekterar} utgående trafik med \code{receive()} --- båda genom samma testdubblare.
+
+Vad den utdelade sviten täcker:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Fall} & \thead{Vad det bevisar} \\ \midrule
+Ingen injicerad frame & \code{echoCount()} oförändrad. \\
+En injicerad frame & Rätt \code{id}, \code{dlc} och data ekas; räknaren går upp med ett. \\
+Två frames, två \code{run()} & Räknaren blir 2. \\
+En frame, \code{run()} \textbf{två} gånger & Räknaren blir 1 --- inte 2. Fångar buggen i
+  \secref{sec:interaction}. \\
+\code{dlc = 0} och \code{dlc = 8} & Gränsvärdespar. \\
+\code{send()} misslyckas & Räknaren går inte upp. \\
+\end{booktable}
+
+\subsection{Samma mönster, ett lager ned}
+
+Det här är det enda du behöver bära med dig härifrån. I \kapref{ch:testning} gör den utdelade
+sviten \textbf{exakt samma sak}, en söm längre ned: \code{BankTransport} ersätter \code{Stub},
+\code{Spi} är det som testas, och testet skriptar vad hårdvaran svarar i stället för vilka frames
+som kommer in.
+
+Att det \emph{är} samma mönster är ingen tillfällighet --- det är vad man får av att lägga sömmarna
+på rätt ställen.
+
+\subsection{Vad det inte bevisar}
+
+Att \code{EchoNode} samverkar rätt med \emph{någon} implementation av \code{Interface}. Ingenting
+om \code{Spi}, som ännu inte finns, och ingenting om huruvida registerkartan lästs rätt.

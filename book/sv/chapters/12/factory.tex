@@ -1,0 +1,112 @@
+\section{Factoryn}
+\label{sec:factory}
+
+Alla delar finns nu. Det som fattas är limmet:
+
+\begin{console}
+EchoNode         behöver ett  Interface&
+Spi              ÄR ett       Interface,  och behöver en ByteTransport&
+AvrSpiTransport  ÄR en        ByteTransport
+\end{console}
+
+Någon måste skapa objekten, i rätt ordning, och hålla dem vid liv så länge programmet kör. Den
+någon ska inte vara \code{main}, och definitivt inte \code{EchoNode}.
+
+\begin{cppcode}
+class Factory
+{
+public:
+    Factory() noexcept;
+
+    Factory(const Factory&)            = delete;
+    Factory(Factory&&)                 = delete;
+    Factory& operator=(const Factory&) = delete;
+    Factory& operator=(Factory&&)      = delete;
+
+    /**
+     * @brief Get the CAN driver.
+     *
+     * @return Reference to the driver, valid for the lifetime of the factory.
+     */
+    [[nodiscard]] driver::can::Interface& canDriver() noexcept;
+
+private:
+    AvrSpiTransport myTransport; /**< Byte transport. Declared before the driver that uses it. */
+    driver::can::Spi myDriver;   /**< The CAN driver, bound to myTransport. */
+};
+\end{cppcode}
+
+\textbf{Deklarationsordningen är ett krav, inte stil.} Medlemmar konstrueras i den ordning de
+deklareras, och \code{myDriver} tar en referens till \code{myTransport} i sin konstruktor. Byt
+plats på de två raderna och du binder en referens till ett objekt som inte konstruerats än.
+Kompilatorn säger ingenting.
+
+\textbf{Returtypen är \code{Interface&}, inte \code{Spi&}.} Det är hela poängen. Anroparen får
+något den kan använda, inte något den kan känna igen.
+
+\textbf{Ingen heap.} Objekten är medlemmar, factoryn ligger på stacken i \code{main}, och allt har
+statisk storlek. På ett friställt mål finns ingen \code{std::unique_ptr} att ta till --- och den
+behövs inte heller. Smarta pekare i ett factory-exempel löser ett ägandeproblem som inte finns när
+antalet objekt är känt vid kompileringstillfället.
+
+\section{\texorpdfstring{\code{main}}{main}}
+\label{sec:main}
+
+\begin{cppcode}
+int main()
+{
+    Factory factory{};
+    app::EchoNode node{factory.canDriver(), ResponseId};
+
+    while (true)
+    {
+        node.run();
+    }
+}
+\end{cppcode}
+
+Fem rader. \code{main} gör tre saker och inget mer: skapar factoryn, skapar applikationskomponenten
+med det factoryn lämnar ut, och kör.
+
+Orden \code{Spi}, \code{AvrSpiTransport}, \code{SPI0} och \code{PORTC} förekommer inte.
+\textbf{Om du kan läsa din \code{main} utan att veta vilken hårdvara programmet kör på har du fått
+arkitekturen rätt.}
+
+\subsection{Testet på designen}
+
+Byt en rad i factoryn:
+
+\begin{cppcode}
+private:
+    driver::can::Stub myDriver;   // was: AvrSpiTransport + Spi
+\end{cppcode}
+
+Kompilera för \textbf{värddatorn}. Det ska gå, och programmet ska köra --- \code{EchoNode} ekar
+frames mot en array i minnet i stället för mot en CAN-buss.
+
+Går det inte, pekar kompilatorfelet ut exakt var någon rad ovanför interfacet
+(\file{driver/can/interface.hpp}) har lärt sig något om hårdvaran som den inte borde veta.
+
+Det är ett test du kan köra på tio sekunder, och det säger mer om arkitekturens kvalitet än någon
+kodgranskning.
+
+\section{En applikation som går att felsöka med}
+\label{sec:debugapp}
+
+\code{EchoNode} är bra att bevisa arkitekturen med och dålig att felsöka med: den gör ingenting
+synligt. Inför \kapref{ch:bringup} är det värt att bygga en till.
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{Lysdiod} & \thead{Tänds när} \\ \midrule
+Grön & En frame har tagits emot och kvitterats. \\
+Gul & En frame har skickats (\code{send()} returnerade \code{true}). \\
+Röd & \code{hasError()} returnerade \code{true}. \\
+\end{narrowtable}
+
+Plus en knapp som skickar en frame med ett känt ID och en känd nyttolast.
+
+Det är ett kvarts arbete och det betalar sig direkt vid bänken: en röd lysdiod som tänds när du
+kopplar in transceivern säger något helt annat än en nod som inte gör något alls.
+
+\textbf{Håll den utanför \code{EchoNode}.} Lysdioderna hör till applikationen, inte till
+drivrutinen, och drivrutinen ska fortsätta vara byggbar för värddatorn.

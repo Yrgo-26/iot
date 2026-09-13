@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item Interfacet är ren abstrakt och har fyra metoder. Destruktorn måste vara \code{virtual},
+    annars läcker en implementation som raderas genom en basklasspekare.
+  \item \code{[[nodiscard]]} på \code{send()} gör den vanligaste drivrutinsbuggen --- ett ignorerat
+    returvärde --- till en kompilatorvarning.
+  \item Testet på om en metod hör hemma i interfacet: \textbf{kan både \code{Stub} och \code{Spi}
+    implementera den meningsfullt?}
+  \item \code{inject()} ligger därför i \code{Stub}, inte i \code{Interface}. Testet håller i den
+    konkreta typen; komponenten ser bara interfacet.
+  \item Stubben simulerar medvetet varken fel, upptagen hårdvara eller kö. En stubb som växer till
+    en andra hårdvaruimplementation behöver själv testas.
+  \item Sömmen har redan betalat sig: bytet från minnesmappad I/O till SPI lämnade allt ovanför
+    \code{Interface} oförändrat.
+\end{itemize}

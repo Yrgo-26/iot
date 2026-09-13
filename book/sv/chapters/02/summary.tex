@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item Data kommer en byte i taget. Mottagningen måste därför vara inkrementell, och en
+    tillståndsmaskin med ett tillstånd per fält är det naturliga sättet.
+  \item \textbf{Framning och validering är två frågor.} \code{isFrameReady()} säger att rätt antal
+    bytes kommit in; \code{extractFrame()} säger att de betyder något. En färdigframad frame kan
+    mycket väl vara trasig.
+  \item Valideringen hör hemma i \code{Frame::deserialize()}, inte i tillståndsmaskinen:
+    maskinen vet var fälten ligger, framen vet vad de betyder.
+  \item Skräpdata före SOF hanteras av att \code{WaitForSof1} kastar allt som inte är \code{0xA5}.
+    I \code{WaitForSof2} ska parsern \textbf{stanna kvar} om byten är \code{0xA5} igen.
+  \item Ett längdfält utifrån måste kontrolleras mot buffertens storlek innan det används. Annars
+    är det en buffertöverskrivning, inte en felhantering.
+  \item Parsern måste nollställas mellan frames.
+\end{itemize}

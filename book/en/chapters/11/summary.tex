@@ -1,0 +1,18 @@
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+\begin{itemize}
+  \item Two test doubles, two questions. \code{ScriptedTransport} checks \emph{which bytes} were
+    sent; \code{BankTransport} checks \emph{how the driver behaves}.
+  \item They do not overlap. A missing mask against \code{dlc} is caught only by the one, a
+    misordered trigger only by the other.
+  \item The \code{ScriptedTransport} file is the SPI protocol written as code --- and thereby a
+    more precise requirements specification than the prose.
+  \item With \code{BankTransport} the \textbf{whole stack} runs on the laptop. The test case is
+    the same as in \kapref{ch:komponent}, with \code{Stub} swapped out. \code{EchoNode} is
+    unchanged.
+  \item Read a failing test case in the order test name $\rightarrow$ index $\rightarrow$ expected
+    value $\rightarrow$ your code.
+  \item A green suite proves that the code agrees with the test author's \emph{interpretation}.
+    The wiring, the time budget and the other group's interpretation are outside it.
+\end{itemize}

@@ -1,0 +1,37 @@
+\section{Samma frågor, två svar}
+\label{sec:sameq}
+
+Hela boken kretsar kring fem frågor. Första delen besvarade dem i mjukvara, andra delen lät
+hårdvaran göra det:
+
+\begin{booktable}{@{}lLL@{}}
+\thead{Fråga} & \thead{Eget protokoll} & \thead{CAN} \\ \midrule
+Var börjar meddelandet? & SOF, två bytes & SOF-bit; sju recessiva bitar som slutmärke \\
+Hur långt är det? & LEN, en byte & DLC, fyra bitar, 0--8 databytes \\
+Vem är det till? & DST och SRC & \textbf{Ingen adress.} Identifieraren beskriver innehållet \\
+Kom det fram helt? & Summacheck\-summa & CRC-15, plus bitstoppning och formatregler \\
+Kom det fram alls? & ACK, timeout, omsändning, dubblett\-detektering & En ACK-bit inuti framen \\
+\end{booktable}
+
+Att kunna fylla i den tabellen ur minnet, och motivera varje rad, är ungefär vad duggan kräver av
+den första halvan.
+
+\section{Vad duggan täcker}
+\label{sec:exam}
+
+\subsection{Del A --- det egna protokollet}
+
+Framedesign och checksumberäkning för hand. Parsning som tillståndsmaskin. Adressering, routing och
+sekvensnummer. Byte-strömmar som ska tolkas och analyseras. Felmodellen: tappade bytes, korrupt
+data, fördröjning. Kedjan ACK $\rightarrow$ timeout $\rightarrow$ omsändning $\rightarrow$
+dubbletter.
+
+\subsection{Del B --- CAN och drivrutinen}
+
+CAN-ID, prioritet, DLC och arbitrering. Vilka mekanismer hårdvaran utför, och var. Registerkartan:
+vad varje register betyder, och hur varje statusbit nollställs. Databyteordningen över
+\code{TX_DATA_LO}/\code{HI}. SPI-transaktionen: kommandobyten, de fyra databyten, \code{SS}-reglerna,
+och att koda och avkoda en transaktion för hand. Lagerarkitekturen. De tre begränsningarna.
+
+Registerkartan delas ut med duggan --- indexen behöver inte memoreras. Att \emph{läsa} kartan och
+veta vad den betyder behövs desto mer.

@@ -1,0 +1,70 @@
+\chapter*{Förord}
+\addcontentsline{toc}{chapter}{Förord}
+\markboth{Förord}{Förord}
+
+Den här boken handlar om två sätt att lösa samma problem.
+
+Första delen löser det i mjukvara. Du bestämmer själv var en frame börjar, hur lång den är, hur den
+skyddas mot fel, och vad som ska hända när ett svar uteblir. Varje mekanism blir din egen, och
+varje mekanism blir kod du får skriva och underhålla. Det är lärorikt på ett sätt som är svårt att
+ersätta: man förstår vad ett längdfält är till för först när man glömt det.
+
+Andra delen kastar allt det och låter hårdvaran göra jobbet. CAN är från 1986, det sitter i varje
+bil byggd sedan mitten av nittiotalet, och det löser nästan exakt de problem du just löst själv
+--- fast i kisel, och bättre. Det som återstår för mjukvaran är att prata med kontrollern.
+
+Tredje delen kopplar ihop det med verkligheten: en mikrokontroller, ett FPGA, fyra ledningar
+mellan dem, och en buss som en bussanalysator kan läsa.
+
+\section*{Det som gör kursen ovanlig}
+
+CAN-kontrollern du skriver drivrutin mot finns inte färdig. Den konstrueras i VHDL av en
+parallellklass, samtidigt som du skriver mjukvaran mot den.
+
+Ingen av klasserna kan alltså kompilera mot den andras kod. Det enda som binder ihop de två
+halvorna är två dokument --- en registerkarta och ett SPI-protokoll --- och de är projektets
+egentliga kravspecifikation.
+
+\begin{aside}
+\note Att arbeta mot ett kontrakt i stället för mot en implementation är inte en kursövning. Det
+är hur inbyggd utveckling fungerar när hårdvara och mjukvara byggs parallellt, vilket är det
+normala fallet och inte undantaget. Det mesta av det som är svårt i den här kursen är svårt av den
+anledningen.
+\end{aside}
+
+\section*{Bokens upplägg}
+
+Ett kapitel per föreläsning, femton stycken, i tre delar:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Kapitel} & \thead{Del} \\ \midrule
+1--3 & \textbf{Ett eget protokoll.} Frames, byte-parsning, bussar, routing och tillförlitlighet. \\
+4--12 & \textbf{CAN-drivrutinen.} Registerkartan, arkitekturen, interfacet, stubben, SPI,
+  transportsömmen, drivrutinen, testningen och hårdvaran. \\
+13--15 & \textbf{Hårdvaran.} Bring-up, bussanalys, och repetition inför duggan. \\
+\end{booktable}
+
+Varje kapitel öppnar med vad det innehåller, avslutas med en sammanfattning, och har därefter
+sina övningar. \textbf{Lösningarna till varje övning som inte ber om kod står i appendix~A} ---
+alla resonemangs-, räkne- och avkodningsuppgifter, och de delar av kodövningarna som är resonemang.
+Koden som kodövningarna ber om besvaras inte där: för den är den utdelade testsviten svaret, och
+koden publiceras i kursrepot efter respektive föreläsning.
+
+Övningsduggan med fullständiga svar ligger sist, i appendix.
+
+\section*{Förkunskaper}
+
+Boken förutsätter klasser, arv, virtuella funktioner, abstrakta basklasser och factory-mönstret.
+Den repeterar dem inte. Den förutsätter också grundläggande vana vid Git, en terminal och
+\code{make}.
+
+Inget om CAN, om hårdvaruregister eller om testning förutsätts.
+
+\section*{Ytterligare litteratur}
+
+En bok till hör till kursen, och den behövs inte för att klara den: \textit{CAN --- bussen, framen
+och kontrollern}, kursens egen bok om CAN som protokoll. Den tar bussen, framen, bitstoppningen,
+CRC-15, arbitreringen, bittajmingen och felhanteringen, med övningar och svar, och är att betrakta
+som det här kapitel 4:s långa version. Den ligger i ett eget repo, eftersom den delas med
+hårdvarukursen och därför inte nämner någon kurs.
+

@@ -1,0 +1,55 @@
+\section*{Chapter 6 --- The interface and the stub}
+\addcontentsline{toc}{section}{Chapter 6 --- The interface and the stub}
+
+\solution{ex:6:1}{Predict the compiler}
+\ans{a} It compiles without the slightest objection, and that is the whole problem. Without
+\code{virtual}, which destructor is called is decided by the pointer's \emph{static} type, that
+is, \code{Interface}. \code{Stub}'s destructor never runs, its members are never destroyed, and
+the standard calls that undefined behaviour. For \code{Stub} it is not noticed --- it owns nothing
+--- but for a class holding a resource it leaks, silently, on every deletion. No test catches it.
+\ans{b} Without the attribute, \code{driver.send(frame);} is a perfectly legal statement the
+compiler has no reason to complain about. With \code{[[nodiscard]]} it becomes a warning, and with
+\code{-Werror} an error. That turns the most common driver bug --- believing that a frame went out
+when the hardware was busy --- from a debugging session into a compilation that stops.
+\ans{c} With \code{override} the misspelling is a compile error: there is no virtual method by
+that name to override. Without \code{override} it compiles, and you have instead \emph{added} a
+new method. The base class's pure virtual method is then still unimplemented, so the class remains
+abstract --- and the error message you get is about the type not being instantiable, far from the
+misspelled line. That is why \code{override} is mandatory.
+
+\solution{ex:6:2}{One method too many}
+\ans{a} Nothing meaningful. The stub has no registers; it would have to return an invented
+constant, that is, to lie.
+\ans{b} \code{EchoNode} becomes tied to the hardware \emph{having} registers. The test for whether
+a method belongs in the interface is exactly this: can both implementations fulfil it honestly? If
+they cannot, it does not belong there.
+\ans{c} Every caller has to change, since the meaning of the bits is part of the register map and
+not of the interface. The interface would then inherit the hardware's versions, which is precisely
+what it exists to avoid.
+\ans{d} In \code{Spi}, as a private helper function --- or, for debugging, in a separate
+\code{PrintTransport} below the \code{ByteTransport} seam, where it is invisible to anybody above.
+
+\solution{ex:6:3}{The polymorphism}
+The exercise does not ask for code; the questions are answered here.
+\ans{a} No. The function takes a \code{driver::can::Interface\&} and uses only the interface's four
+methods.
+\ans{b} Because it can then be run against any implementation at all. Written against \code{Stub}
+it would have been a test of \code{Stub}; written against the interface it is a test of the
+\emph{contract}, and the contract is what both \code{Stub} and \code{Spi} promise.
+\ans{c} That \code{Spi} really does fulfil the same contract: the same return values in the same
+situations. Above all, \code{send()} has to return \code{false} when the hardware is busy and
+\code{receive()} has to return \code{false} when there is no frame --- otherwise the function
+passes for the stub and fails for the driver.
+
+\solution{ex:6:4}{The limits of the stub}
+\ans{a} Errors (\code{hasError()} is always \code{false}), busy hardware (\code{send()} always
+succeeds), a queue (a second \code{send()} overwrites the first), and everything CAN does:
+arbitration, CRC, bit stuffing.
+\ans{b} Busy hardware, for example: a counter that makes the next \code{send()} return
+\code{false}, set by a test method. That is the simplest, since it requires no new state beyond a
+flag.
+\ans{c} Every simulated behaviour is code that can be wrong. A stub that simulates a queue, errors
+and timing is a second implementation of the hardware --- and then you no longer know whether a
+failing test is due to the driver or to the stub. The limit lies roughly where the stub would need
+a test case of its own: if it does, the behaviour belongs in a more realistic double, such as
+\code{BankTransport} in \kapref{ch:testning}.

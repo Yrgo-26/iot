@@ -1,0 +1,161 @@
+\section{Why two}
+\label{sec:twodoubles}
+
+\code{ByteTransport} is a small interface --- three methods --- and precisely for that reason it
+can be implemented in two completely different ways, answering two different questions.
+
+\begin{booktable}{@{}llL@{}}
+\thead{Double} & \thead{The question} & \thead{What it is} \\ \midrule
+\code{ScriptedTransport} & \emph{Did the driver send the right bytes?} & A tape recorder: plays
+  back pre-programmed answers, records everything that was sent. \\
+\code{BankTransport} & \emph{Does the driver behave correctly?} & A simulator: a register bank in
+  memory, with the hardware's semantics. \\
+\end{booktable}
+
+Both are supplied. They do not overlap, and both are needed:
+
+\begin{booktable}{@{}lll@{}}
+\thead{Bug} & \thead{Scripted} & \thead{Bank} \\ \midrule
+\code{clearError()} writes \code{0x1} & Yes, directly & Yes, indirectly \\
+\code{receive()} does not mask against \code{dlc} & \textbf{No} & Yes \\
+\code{TX_SEND} written before the data registers & Yes & \textbf{No} \\
+\code{TX_DATA_LO}/\code{HI} swapped & Yes & No \\
+\end{booktable}
+
+Rows two and three are the reason one of them is not enough.
+
+\section{\texorpdfstring{\code{ScriptedTransport}}{ScriptedTransport}}
+\label{sec:scripted}
+
+It does three things: plays back \code{MISO} bytes from a script, records every \code{MOSI} byte,
+and counts \code{select()}/\code{deselect()} pairs.
+
+\begin{cppcode}
+TEST(Spi, writeRegSendsCommandByteThenValueMsbFirst)
+{
+    // Arrange.
+    ScriptedTransport transport{};
+    driver::can::Spi driver{transport};
+
+    driver::can::Frame frame{};
+    frame.id      = 0x123U;
+    frame.dlc     = 2U;
+    frame.data[0] = 0xAAU;
+    frame.data[1] = 0xBBU;
+
+    // Act.
+    static_cast<void>(driver.send(frame));
+
+    // Assert: the TX_DATA_LO transaction.
+    const auto& sent{transport.sent()};
+    EXPECT_EQ(sent[10], 0x83U);   // CmdWrite | RegTxDataLo
+    EXPECT_EQ(sent[11], 0xAAU);
+    EXPECT_EQ(sent[12], 0xBBU);
+    EXPECT_EQ(sent[13], 0x00U);
+    EXPECT_EQ(sent[14], 0x00U);
+}
+\end{cppcode}
+
+\textbf{Read that as the protocol, not as code.} The five lines in the Assert part are
+\code{83 AA BB 00 00} from \kapref{ch:spi}, written as a requirement. That whole test file is in
+practice the SPI protocol expressed in C++ --- and thereby a more precise requirements
+specification than the prose.
+
+\section{\texorpdfstring{\code{BankTransport}}{BankTransport}}
+\label{sec:bank}
+
+The more ambitious one. It interprets the command byte, holds thirteen registers in memory, and
+imitates the hardware's semantics: the masking of \code{TX_ID}/\code{TX_DLC}, that a write to
+\code{TX_SEND} clears TX ready, that \code{RX_ACK} clears RX valid, and that only an all-zero word
+clears \code{ERROR_FLAGS}.
+
+Plus a few methods only the test uses, to simulate what the controller does:
+
+\begin{cppcode}
+void completeTransmission() noexcept;              /**< TX ready goes high again. */
+void deliverFrame(const driver::can::Frame& frame) noexcept;  /**< RX valid goes high. */
+void raiseError() noexcept;                        /**< The controller latches an error. */
+\end{cppcode}
+
+With those a test case can script a whole sequence of events --- for example a frame with
+\code{dlc = 2} following one with \code{dlc = 8}, which is exactly the case the masking loop in
+\kapref{ch:driver} exists for.
+
+\section{The whole stack on a laptop}
+\label{sec:wholestack}
+
+\begin{cppcode}
+TEST(EchoNode, echoesThroughTheRealDriver)
+{
+    // Arrange.
+    BankTransport bank{};
+    driver::can::Spi driver{bank};
+    app::EchoNode node{driver, 0x200U};
+
+    driver::can::Frame incoming{};
+    incoming.id      = 0x123U;
+    incoming.dlc     = 2U;
+    incoming.data[0] = 0xAAU;
+    incoming.data[1] = 0xBBU;
+    bank.deliverFrame(incoming);
+
+    // Act.
+    node.run();
+
+    // Assert.
+    EXPECT_EQ(node.echoCount(), 1U);
+    EXPECT_EQ(bank.readRegister(1U), 0x200U);      // TX_ID
+    EXPECT_EQ(bank.readRegister(3U), 0xAABB0000U); // TX_DATA_LO
+}
+\end{cppcode}
+
+Compare with the test case in \kapref{ch:komponent}. It is \textbf{the same test case}, with
+\code{Stub} swapped for \code{Spi} + \code{BankTransport}. \code{EchoNode} is unchanged.
+
+That is the architecture paying you back: the seam in \code{Interface} made the swap possible, and
+the seam in \code{ByteTransport} made it possible \emph{without hardware}.
+
+\section{From a failing test case to the bug}
+\label{sec:debugging}
+
+\begin{console}
+FAILED: EXPECT_EQ(sent[11], 0xAAU) at test_spi.cpp:87
+\end{console}
+
+The procedure, and \textbf{without opening your own code in steps 1--3}:
+
+\begin{enumerate}
+  \item \textbf{The test name.} \code{writeRegSendsCommandByteThenValueMsbFirst} --- the
+    requirement is about how a value is written out, MSB first.
+  \item \textbf{The index.} \code{sent[11]} is the second byte of the third transaction. Count:
+    0--4 is the \code{STATUS} read, 5--9 is \code{TX_ID}, 10--14 is \code{TX_DLC}... or
+    \code{TX_DATA_LO}? Miscounting here is common; print the whole recording and look.
+  \item \textbf{The expected value.} \code{0xAA} is \code{frame.data[0]}. The requirement is
+    therefore that data byte 0 ends up first.
+  \item \textbf{Now}, and only now: your \code{pack()}. Is \code{data[0]} in bits 31--24?
+\end{enumerate}
+
+\section{What a green suite does not prove}
+\label{sec:notproven}
+
+This is more important than it sounds.
+
+A green suite proves that your code agrees with \textbf{the test author's interpretation of the
+contract}. It does not prove:
+
+\begin{itemize}
+  \item That the \textbf{interpretation} is right. The test suite is written by a human who read
+    the same document as you.
+  \item That the \textbf{hardware group} implemented the same interpretation. Their testbenches
+    are written against the same document, by a different human.
+  \item That the \textbf{wiring} is right. A swapped \code{MOSI}/\code{MISO} is invisible to every
+    test on the laptop.
+  \item That the \textbf{time budget} holds. \code{BankTransport} answers immediately; a real SPI
+    link does not.
+  \item That you \textbf{poll often enough} not to lose frames.
+\end{itemize}
+
+All of that is caught only by \kapref{ch:bringup} and \kapref{ch:analys}. But everything
+\emph{below} those points is to be green before you connect anything: \textbf{a green suite does
+not make bring-up easy; it makes it possible}, by removing a couple of hundred sources of error
+before you stand at the bench.

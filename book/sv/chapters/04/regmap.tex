@@ -1,0 +1,107 @@
+\section{Registerkartan}
+\label{sec:regmap}
+
+Tretton register, vart och ett 32 bitar. \textbf{Indexet} är det som går ut på ledningen;
+offsetkolumnen är alltid $\text{index} \times 4$ och är ett arv från en äldre, minnesmappad variant
+av samma konstruktion.
+
+\begin{booktable}{@{}rlllL@{}}
+\thead{Idx} & \thead{Register} & \thead{Offset} & \thead{Åtk.} & \thead{Beskrivning} \\ \midrule
+0 & \code{STATUS} & \code{0x00} & R & Bit 0: TX klar. Bit 1: RX giltig. Bit 2: Fel. \\
+1 & \code{TX_ID} & \code{0x04} & R/W & 11-bitars sändar-ID (bitarna 10--0). \\
+2 & \code{TX_DLC} & \code{0x08} & R/W & Data Length Code (bitarna 3--0, värde 0--8). \\
+3 & \code{TX_DATA_LO} & \code{0x0C} & R/W & Sändardata byte 0--3 (byte 0 = MSB). \\
+4 & \code{TX_DATA_HI} & \code{0x10} & R/W & Sändardata byte 4--7. \\
+5 & \code{TX_SEND} & \code{0x14} & W & Skriv \code{0x1} för att utlösa sändning. \\
+6 & \code{RX_ID} & \code{0x18} & R & Mottagen identifierare. \\
+7 & \code{RX_DLC} & \code{0x1C} & R & Mottagen DLC. \\
+8 & \code{RX_DATA_LO} & \code{0x20} & R & Mottagen data byte 0--3. \\
+9 & \code{RX_DATA_HI} & \code{0x24} & R & Mottagen data byte 4--7. \\
+10 & \code{RX_ACK} & \code{0x28} & W & Skriv \code{0x1} för att kvittera. \\
+11 & \code{ERROR_FLAGS} & \code{0x2C} & R/W & Felregistret; skriv \code{0x0} för att nollställa. \\
+12 & \code{TX_ABORT} & \code{0x30} & W & Skriv \code{0x1} för att tvinga tillbaka TX klar. \\
+\end{booktable}
+
+Index 13--15 är reserverade: en läsning ger \code{0x00000000}, en skrivning ignoreras.
+
+\subsection{STATUS: de tre bitarna allt kretsar kring}
+
+\begin{booktable}{@{}rlLL@{}}
+\thead{Bit} & \thead{Betydelse} & \thead{Sätts av} & \thead{Nollställs av} \\ \midrule
+0 & TX klar & reset; en avslutad sändning; en stigande flank på felnivån medan biten är låg; en
+  skrivning till \code{TX_ABORT} & en accepterad skrivning till \code{TX_SEND} \\
+1 & RX giltig & en mottagen frame, som samtidigt låser \code{RX_*} & en skrivning av \code{0x1}
+  till \code{RX_ACK} \\
+2 & Fel & en \textbf{stigande flank} på kontrollerns felnivå & en skrivning av \code{0x0} till
+  \code{ERROR_FLAGS} \\
+\end{booktable}
+
+Bitarna 31--3 läses alltid som \code{0}.
+
+\textbf{Läs tabellen en gång till.} Varje bit har en uttrycklig nollställning, och den
+nollställningen är drivrutinens ansvar. Glöms \code{RX_ACK} står bit 1 kvar för alltid och du
+läser samma frame i en oändlig loop. Glöms att \code{TX_SEND} nollställer bit 0 undrar du varför
+den andra sändningen aldrig accepteras.
+
+\subsection{Regler som är lätta att missa}
+
+\begin{itemize}
+  \item \code{TX_SEND} och \code{RX_ACK} kräver att \textbf{bit 0 är satt}; övriga bitar ignoreras.
+  \item \code{ERROR_FLAGS} nollställs \textbf{bara av ett helt nollställt ord}. \code{0x1} gör
+    ingenting, och \code{0x000000FF} gör ingenting trots att bit 0 är satt. Motsatt regel mot de
+    två ovan.
+  \item \code{TX_ID} maskerar till elva bitar, \code{TX_DLC} till fyra. En skrivning av
+    \code{0xFFFFFFFF} läses tillbaka som \code{0x000007FF} respektive \code{0x0000000F}.
+  \item Skrivningar till \code{STATUS} och \code{RX_*} ignoreras tyst.
+  \item Läsningar av \code{TX_SEND} och \code{RX_ACK} ger \code{0x00000000}.
+\end{itemize}
+
+\subsection{Databyteordning}
+
+\code{TX_DATA} och \code{RX_DATA} är 64 bitar breda, med \textbf{databyte 0 i de mest signifikanta
+bitarna}:
+
+\begin{console}
+bit 63                                                              bit 0
++--------+--------+--------+--------+--------+--------+--------+--------+
+| byte 0 | byte 1 | byte 2 | byte 3 | byte 4 | byte 5 | byte 6 | byte 7 |
++--------+--------+--------+--------+--------+--------+--------+--------+
+ \___________ TX_DATA_LO ___________/ \___________ TX_DATA_HI __________/
+\end{console}
+
+\code{LO} och \code{HI} syftar på registerparets ordning, inte på bitsignifikans:
+\textbf{\code{TX_DATA_LO} bär de första fyra databytesen.} Det är projektets vanligaste läsfel,
+och det syns inte förrän en frame kommer fram bakvänd.
+
+En frame med \code{dlc = 2} och data \code{AA BB} packas alltså som \code{TX_DATA_LO = 0xAABB0000}
+och \code{TX_DATA_HI = 0x00000000}.
+
+\subsection{De tre begränsningarna}
+\label{sec:limits}
+
+Hårdvaran är förenklad mot riktig CAN på många punkter. Tre av dem syns ända upp i din kod, och
+måste hanteras snarare än döljas.
+
+\begin{limitation}
+\textbf{En förlorad arbitrering ser ut som en lyckad sändning.} \code{STATUS} bit 0 kommer tillbaka
+i båda fallen. Biten betyder \emph{sändarporten är fri igen}, inte \emph{framen kom fram}. Vill du
+veta utfallet: vänta på bit 0, och läs \textbf{sedan} \code{ERROR_FLAGS}.
+\end{limitation}
+
+\begin{limitation}
+\textbf{\code{ERROR_FLAGS} är en bit för fyra orsaker} --- förlorad arbitrering, stoppfel,
+misslyckad CRC och mottagen fjärrframe. Du kan se \emph{att} något gick fel, aldrig \emph{vad}.
+Retry-logik som skiljer på dem går inte att skriva mot det här gränssnittet.
+\end{limitation}
+
+\begin{limitation}
+\textbf{Ingen buffring på mottagarsidan.} Kontrollern håller exakt en frame. Kommer nästa innan
+den förra kvitterats skrivs den över, och den nyaste vinner. Polla ofta --- och vet att det vid
+någon trafikintensitet ändå inte räcker.
+\end{limitation}
+
+\begin{aside}
+\note Hårdvaran validerar ingenting. En \code{TX_DLC} på \code{0xF} lagras och skickas vidare
+precis som den är. Att avvisa ogiltiga frames är \textbf{drivrutinens} ansvar, och bara
+drivrutinens: två kopior av samma regel är två saker som ska hållas i synk.
+\end{aside}

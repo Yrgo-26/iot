@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item Ett komponenttest fångar \textbf{interaktionsbuggar} --- ett anrop för mycket, i fel
+    ordning, med ignorerat returvärde --- som varje enhetstest är grönt trots.
+  \item \code{EchoNode} får sin drivrutin genom konstruktorn. Skapar den sin egen är den omöjlig
+    att testa och \code{Interface} meningslös.
+  \item En \textbf{referens}, inte en pekare: kan inte vara null, kan inte bytas. Och inte en
+    \code{unique_ptr}: komponenten äger inte drivrutinen.
+  \item Headern framåtdeklarerar \code{Interface} och inkluderar ingen konkret drivrutin. Den
+    raden \emph{är} lagergränsen.
+  \item Loopen går till \code{dlc}, inte till \code{MaxDataLen}. Räknaren räknar lyckade ekon,
+    inte försök.
+  \item Testet matar in trafik och inspekterar utgående trafik genom samma dubblare. Samma mönster
+    återkommer en söm längre ned.
+\end{itemize}

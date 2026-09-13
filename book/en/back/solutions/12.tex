@@ -1,0 +1,65 @@
+\section*{Chapter 12 --- The hardware, the transport and the factory}
+\addcontentsline{toc}{section}{Chapter 12 --- The hardware and the factory}
+
+\solution{ex:12:1}{Watch the optimiser work}
+The exercise asks for code; the outcomes are described here.
+\ans{a} The loop disappears, or becomes an unconditional jump to itself. The compiler reads
+\code{flag} once, sees that nothing in the loop changes it, and concludes that the condition is
+constant.
+\ans{b} The read moves back into the loop: one load from memory per iteration.
+\ans{c} The status flag is changed by the SPI peripheral, not by the program. Without
+\code{volatile} the compiler has the same right to read it once and assume that it stands still
+--- and then \code{transfer()} either waits forever or does not wait at all.
+
+\solution{ex:12:2}{Predict, change, observe}
+The exercise asks for code changes; the symptoms are described here.
+\ans{a} Nothing happens on the connected wires. The peripheral sits on the default mux, that is, a
+different port, and the program runs on without reporting anything. The most confusing symptom
+there is: no error code, no clock pulses, no clue.
+\ans{b} The master leaves master mode on the first \code{select()}, since it interprets the low
+\code{SS} level --- which your own code has just created --- as another master having taken over
+the bus. The transfer stops immediately.
+\ans{c} The clock ends up above the protocol's ceiling of 1~MHz. It may very well work on a short
+cable, and that is the dangerous part: the FPGA slave guarantees nothing above it, so the faults
+come sporadically and get worse with longer wires.
+\ans{d} The status flag is never cleared. The next \code{transfer()} sees a flag that is still set,
+returns immediately, and reads a byte that has not had time to arrive --- so all the data is
+\textbf{one byte behind} through the whole transaction. It \emph{looks} like it works: bytes
+arrive, the count is right, only the content is shifted, and it is easy to suspect the bit order
+instead.
+\ans{e} The clock pin is not driven, so the slave sees no edges and nothing is transferred. Unlike
+a), \code{MOSI} and \code{SS} are active, which means a logic analyser shows activity on three of
+the four wires --- and points straight at it.
+
+\solution{ex:12:3}{The architecture test}
+The exercise asks you to compile; the questions are answered here.
+\ans{a} It should work. If it does not, the architecture is broken.
+\ans{b} The compiler error names the file, and that file is by definition above
+\code{driver/can/interface.h} and has learnt something about the hardware --- typically an
+\code{#include} of \code{spi.h} or a reference to \code{ByteTransport}.
+\ans{c} Exactly the same thing as before, against an array in memory: it echoes injected frames
+and increments its counter. That the behaviour is unchanged is the whole point --- the application
+cannot tell an FPGA from a stub.
+
+\solution{ex:12:4}{Freestanding}
+The exercise asks you to build; the questions are answered here.
+\ans{a} Yes. Nothing in the project uses exceptions or RTTI.
+\ans{b} Nothing should be found. The whole stack --- \code{Frame}, \code{Interface}, \code{Stub},
+\code{ByteTransport}, \code{Spi}, \code{EchoNode} --- is built on statically allocated objects of
+known size.
+\ans{c} Because the coding conventions were written for a freestanding target from the start:
+return codes instead of exceptions, aggregates instead of dynamic containers, virtual functions
+instead of downcasting. That was not luck, and this is the chapter that shows what the habit was
+worth.
+
+\solution{ex:12:5}{The construction order}
+\ans{a} It compiles, and the compiler does not warn. Members are constructed in
+\emph{declaration order}, whatever order the initialiser list happens to have.
+\ans{b} \code{myDriver} is constructed first and binds a reference to \code{myTransport}, which has
+not been constructed yet. The binding itself is harmless --- it is only an address --- but the
+first call to \code{transfer()} uses an object that has not been initialised, that is, undefined
+behaviour. On a freestanding target it usually manifests as the SPI peripheral never being
+configured.
+\ans{c} That a member depending on another has to be declared \emph{after} it. The initialiser
+list does not express the order; it just follows the declaration order, and a compiler that warns
+about it only does so when the list and the declarations are in different orders --- not here.

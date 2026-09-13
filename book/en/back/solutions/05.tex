@@ -1,0 +1,46 @@
+\section*{Chapter 5 --- The frame in code, and the first test suite}
+\addcontentsline{toc}{section}{Chapter 5 --- The frame in code}
+
+\solution{ex:5:1}{Predict}
+\ans{a} Typically 12 bytes, not 11. The compiler inserts padding so that \code{id}
+(\code{std::uint16_t}) lands on an even address, and ends the struct at a size that is a multiple
+of its strictest alignment.
+\ans{b} Yes. \code{f.data[7]} is \code{0}: aggregate initialisation zeroes the members that are
+not given.
+\ans{c} The line stops compiling. A user-declared constructor makes the type a non-aggregate, and
+then there is no constructor taking \code{(0x123U, 2U, {...})}. That is precisely why \code{Frame}
+has none.
+
+\solution{ex:5:2}{constexpr}
+\ans{a} That \code{isValid()} can be evaluated at compile time --- otherwise it is not a valid
+\code{static_assert} condition. That also proves that the function is free of side effects.
+\ans{b} Nothing. The check happens when the program is built; in the finished binary there is no
+code for it at all.
+
+\solution{ex:5:3}{Read the suite}
+\ans{a} \code{0x7FF} and \code{0x800} for \code{id}, \code{8} and \code{9} for \code{dlc} --- the
+largest that is to be accepted and the smallest that is to be rejected. Bugs live on the
+boundaries: a value in the middle of the range passes both a correct and an incorrect comparison.
+\ans{b} The case checking that \code{dlc = 8} is accepted would fail; all the others would be
+green. That is why the pair is needed and not just one of the values.
+\ans{c} Yes --- that \code{MaxDataLen} is the same number as the size of the array is not checked,
+and cannot be checked from outside. A green suite means that the code is right on the points the
+suite asks about, not that it is right.
+
+\solution{ex:5:4}{Break the code}
+\ans{a} The case accepting the largest valid \code{id}, that is, \code{0x7FF}. The output names
+the expression, the file and the line.
+\ans{b} Shorter than guessing: the test name points out the requirement, the Arrange part the
+conditions, and the Assert line the expected value --- only after that do you need to open your own
+code.
+\ans{c} Restore the code --- and note that the incorrect version passed every other test case. A
+single character separated a correct implementation from one that rejects every eighth valid
+frame.
+
+\solution{ex:5:5}{Where the validation sits}
+\ans{a} That an error is caught earlier and closer to whoever caused it.
+\ans{b} That the rule now exists in two places, and that both have to be kept in step.
+\ans{c} Only one of the places is changed. The forgotten copy then rejects frames that are valid,
+or lets through frames that are not --- and the fault looks as though it comes from the hardware.
+
+The rule is expressed once, in \code{isValid()}, and used in one place: in \code{Spi::send()}.

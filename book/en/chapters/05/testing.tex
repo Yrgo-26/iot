@@ -1,0 +1,91 @@
+\section{The test pyramid and the supplied suites}
+\label{sec:pyramid}
+
+\subsection{You write no tests}
+
+Every test suite in this course is \textbf{supplied}. Your job is to run them, read them when they
+fail, and get them to pass.
+
+That is a deliberate arrangement. Writing good tests is a craft of its own, and it comes in a
+later course. Here you get to see what tests are \emph{for} instead, on a project where they do
+real work --- and somebody who has seen a test suite find a bug in their own code has a far more
+concrete picture of what a good test is than somebody asked to write one first.
+
+\subsection{Why testing decides this course}
+
+In earlier projects you could run the program and look. Here you cannot:
+
+\begin{itemize}
+  \item \textbf{The hardware does not exist yet.} It is being built in parallel. The first time
+    you can run against it is \kapref{ch:bringup}, the third session from the end.
+  \item \textbf{The hardware is not yours.} When it does exist, somebody else is debugging it at
+    the same time. A bug can be in your code, in their VHDL, or in a jumper wire.
+  \item \textbf{Most of it can be run without hardware.} That is not a consolation prize but a
+    design consequence: the seams in \kapref{ch:can} exist precisely for it.
+\end{itemize}
+
+\textbf{The rule: everything that can be run on the laptop is to be green before it is run on
+hardware.} Bring-up is for hunting wiring errors, not bit-packing errors.
+
+\subsection{The three levels of the pyramid}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Level} & \thead{Where} & \thead{What} \\ \midrule
+Unit test & \kapref{ch:frameklassen}, \kapref{ch:interface} & One class at a time: \code{Frame},
+  \code{Stub}. \\
+Component test & \kapref{ch:komponent}, \kapref{ch:testning} & Several parts together, without
+  hardware: \code{EchoNode} through the stub; \code{Spi} against a simulated register bank. \\
+Integration test & \kapref{ch:bringup}, \kapref{ch:analys} & Real hardware, real wires. \\
+\end{booktable}
+
+The width is a recommendation about \emph{numbers}: many fast tests at the bottom, few expensive
+ones at the top. A project with three fast tests and one person re-plugging wires is the pyramid
+upside down.
+
+\subsection{Reading a test case}
+
+Every supplied test case has three parts:
+
+\begin{cppcode}
+TEST(Frame, isValidRejectsTooLargeDlc)
+{
+    // Arrange.
+    driver::can::Frame frame{};
+    frame.dlc = 9U;
+
+    // Act & Assert.
+    EXPECT_FALSE(driver::can::isValid(frame));
+}
+\end{cppcode}
+
+Arrange says which starting state the requirement applies in, Act says what is to happen, and
+\textbf{Assert is the requirement}.
+
+Note the values as well: \code{8} and \code{9}, \code{0x7FF} and \code{0x800}. Not \code{4} and
+\code{0x400}. \textbf{Bugs live on the boundaries} --- a comparison that should be \code{<=} but
+was written \code{<} works for every single value but one.
+
+\subsection{Reading a failing suite}
+
+\begin{console}
+FAILED: EXPECT_EQ(frame.data[0], 0xAAU) at test_frame.cpp:42
+\end{console}
+
+The procedure, and \textbf{without opening your own code in steps 1--3}:
+
+\begin{enumerate}
+  \item Read the \textbf{test name}. It says which requirement is broken.
+  \item Read \textbf{Arrange}. It says under which conditions.
+  \item Read the \textbf{Assert line} that failed. It says what was expected.
+  \item Only then: open your code.
+\end{enumerate}
+
+Steps 1--3 take a minute and make step 4 short. Jumping straight to step 4 is the most common
+reason a simple bug takes an hour.
+
+\begin{aside}
+\note The supplied test suite is often a \textbf{more precise requirements specification} than the
+prose in the project description. The prose is written by a human and can be ambiguous; the suite
+compiles and runs. If you are wondering exactly what a method is to return in a corner case: open
+the test file before you guess.
+\end{aside}

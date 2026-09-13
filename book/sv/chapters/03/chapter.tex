@@ -1,0 +1,21 @@
+\chapter{Bussar, routing och tillförlitlighet}
+\label{ch:bussar}
+
+\lecture{Föreläsning 3}{Ett eget protokoll}
+
+{\large\itshape Flera noder på en delad ledning, och allt som krävs när den inte är perfekt.\par}
+
+\begin{chapterbox}{I det här kapitlet}
+\begin{itemize}
+  \item Den delade bussen, och varför broadcast är normen i inbyggda system.
+  \item Routing på DST och SRC, och varför den ligger i noden och inte i bussen.
+  \item En felmodell som är \emph{deterministisk}, och varför det är hela poängen.
+  \item ACK och NACK, timeout, omsändning --- och dubbletterna som följer.
+\end{itemize}
+\end{chapterbox}
+
+\input{chapters/03/bus}
+\input{chapters/03/errors}
+\input{chapters/03/reliability}
+\input{chapters/03/summary}
+\input{chapters/03/exercises}

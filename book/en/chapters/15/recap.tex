@@ -1,0 +1,40 @@
+\section{The same questions, two answers}
+\label{sec:sameq}
+
+The whole book revolves around five questions. The first part answered them in software, the
+second part let the hardware do it:
+
+\begin{booktable}{@{}lLL@{}}
+\thead{Question} & \thead{Your own protocol} & \thead{CAN} \\ \midrule
+Where does the message begin? & SOF, two bytes & The SOF bit; seven recessive bits as an end
+  marker \\
+How long is it? & LEN, one byte & DLC, four bits, 0--8 data bytes \\
+Who is it for? & DST and SRC & \textbf{No address.} The identifier describes the content \\
+Did it arrive intact? & A summing check\-sum & CRC-15, plus bit stuffing and format rules \\
+Did it arrive at all? & ACK, timeout, retransmission, duplicate detection & One ACK bit inside the
+  frame \\
+\end{booktable}
+
+Being able to fill in that table from memory, and to justify every row, is roughly what the
+written test requires of the first half.
+
+\section{What the written test covers}
+\label{sec:exam}
+
+\subsection{Part A --- your own protocol}
+
+Frame design and checksum calculation by hand. Parsing as a state machine. Addressing, routing and
+sequence numbers. Byte streams to be interpreted and analysed. The error model: dropped bytes,
+corrupt data, delay. The chain ACK $\rightarrow$ timeout $\rightarrow$ retransmission
+$\rightarrow$ duplicates.
+
+\subsection{Part B --- CAN and the driver}
+
+CAN IDs, priority, DLC and arbitration. Which mechanisms the hardware performs, and where. The
+register map: what every register means, and how every status bit is cleared. The data byte order
+across \code{TX_DATA_LO}/\code{HI}. The SPI transaction: the command byte, the four data bytes,
+the \code{SS} rules, and encoding and decoding a transaction by hand. The layered architecture.
+The three limitations.
+
+The register map is handed out with the test --- the indices do not have to be memorised.
+\emph{Reading} the map and knowing what it means is all the more necessary.

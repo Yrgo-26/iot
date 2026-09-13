@@ -1,0 +1,33 @@
+\section{A deterministic error model}
+\label{sec:errors}
+
+A bus that always delivers every byte in the right order is not a bus, but a function call with
+extra steps. Real buses drop bytes, flip bits and delay deliveries.
+
+The problem with testing error handling is that real errors are random. A test that fails
+sometimes says nothing, and an error that happened once cannot be reproduced.
+
+\textbf{The solution is to make the errors deterministic.} The bus implementation in the course's
+simulation counts bytes and does exactly the same thing on every run:
+
+\begin{cppcode}
+// Deterministic fault injection: byte five is dropped, every run, every time.
+if (5U == ++myByteCounter) { return; }
+\end{cppcode}
+
+Three errors are enough to cover most of it:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Error} & \thead{What happens} \\ \midrule
+\textbf{Dropped byte} & Every following field is shifted. The parser reads the wrong length,
+  waits for the wrong number of bytes, and finally fails on the checksum. \\
+\textbf{Flipped bit} & The frame is structurally correct --- right length, fields in the right
+  places --- but the checksum does not add up. That is precisely the case the checksum exists
+  for. \\
+\textbf{Delay} & The frame arrives, whole and correct, but later than expected. Nothing breaks,
+  and that is the point: a correct parser does not care \emph{when} the bytes arrive. \\
+\end{booktable}
+
+The third case is worth pausing at. A parser that works when the bytes arrive close together but
+breaks when they arrive far apart has a hidden timing dependency, and that is a bug which never
+shows itself until the system is moved to slower hardware.

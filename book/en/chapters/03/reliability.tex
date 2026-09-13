@@ -1,0 +1,103 @@
+\section{Reliable delivery}
+\label{sec:reliability}
+
+The checksum gives \textbf{integrity}: whoever receives a frame knows that it is intact. It gives
+no \textbf{delivery guarantee}: the sender still does not know whether anything arrived.
+
+That difference is this whole section, and the four mechanisms that follow build on each other in
+turn.
+
+\subsection{ACK and NACK}
+
+The receiver answers. If the frame arrived intact it sends an \code{Ack}; if it was broken in a
+way that can still be answered, it sends a \code{Nack}.
+
+The rules for the acknowledgement frame:
+
+\begin{itemize}
+  \item \code{DST} and \code{SRC} swap places compared with the acknowledged frame.
+  \item \code{SEQ} is the \textbf{same} as in the acknowledged frame --- that is how the sender
+    knows what is being acknowledged.
+  \item \code{LEN} is zero.
+\end{itemize}
+
+That \code{SEQ} comes along is not a detail. Without it, a sender with two frames in flight does
+not know which of them arrived.
+
+\begin{aside}
+\note A \code{Nack} can only be sent when the frame is broken in a way that leaves the sender and
+the sequence number readable. If the checksum is wrong, \emph{no} field can be trusted ---
+including \code{SRC} --- so in practice a missing acknowledgement is the usual way an error shows
+itself.
+\end{aside}
+
+\subsection{Timeout}
+
+And with that: what does the sender do when nothing comes back?
+
+It cannot wait forever, and it cannot tell the difference between a lost frame, a lost
+acknowledgement and a slow receiver. The only way out is to make up its mind after a certain
+time: a \textbf{timeout}.
+
+Choosing the timeout value is a trade-off with no right answer:
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{Too short} & \thead{Too long} \\ \midrule
+Unnecessary retransmissions & Slow error detection \\
+More duplicates & The bus stands still and waits \\
+The bus is loaded more when it is already loaded & The system feels hung \\
+\end{narrowtable}
+
+\subsection{Retransmission}
+
+On a timeout the frame is sent again, with the \textbf{same} \code{SEQ}. That is crucial: a new
+sequence number would make the retransmission a new message, and the receiver would not be able
+to recognise it as a repeat.
+
+The number of attempts has to be limited. A sender that tries for all eternity against a node
+that is switched off does nothing else.
+
+\subsection{Duplicates}
+
+And here the circle closes. Retransmission is exactly what creates duplicates.
+
+The dangerous case is not that the frame is lost --- then nothing happened --- but that the
+\textbf{acknowledgement} is lost:
+
+\begin{console}
+A -> B   StatusRequest, SEQ 0x0007      B receives and processes it
+B -> A   Ack, SEQ 0x0007                the acknowledgement is lost
+A        timeout
+A -> B   StatusRequest, SEQ 0x0007      retransmission
+B                                       ...processes it a second time?
+\end{console}
+
+From B's point of view these are two identical frames. If it processes both, the command has been
+carried out twice, and if the command is "increase the setpoint by one" the result is wrong.
+
+\textbf{The solution is to remember.} Every node stores the most recently processed \code{SEQ}
+per sender. If the same \code{SEQ} turns up again:
+
+\begin{itemize}
+  \item Do \textbf{not} run the application logic again.
+  \item Send the acknowledgement again \textbf{anyway}.
+\end{itemize}
+
+The second point is the one that gets forgotten. The sender is still waiting for its
+acknowledgement, and silence only leads to yet another retransmission.
+
+\begin{aside}
+\note Four mechanisms, in a chain where each solves the problem the previous one created: the
+checksum detects errors, the ACK confirms delivery, the timeout detects a missing ACK,
+retransmission fixes it --- and duplicate detection cleans up after the retransmission. None of
+them can be left out, and that is why the chain is worth knowing by heart.
+\end{aside}
+
+\subsection{And then the hardware does it for us}
+
+Everything in this section is code you write, test and maintain. From \kapref{ch:can} onwards
+most of it sits in silicon: CAN does framing, checksumming and collision handling in hardware,
+and acknowledges in a single bit inside the frame as well.
+
+That does not make this chapter less important. It makes it the background against which CAN can
+be understood --- and a part of what the written test examines.

@@ -1,0 +1,65 @@
+\section{Lagerarkitekturen}
+\label{sec:arch}
+
+\bookfigure{architecture}{Drivrutinsstacken. Varje vågrät linje är en gräns någon inte får titta
+igenom.}{fig:arch}
+
+Två sömmar bär hela konstruktionen, och de löser olika problem:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Söm} & \thead{Gör vad testbart} \\ \midrule
+\code{driver::can::Interface} & \textbf{Applikationen.} \code{EchoNode} kan köras mot en
+  \code{Stub} och behöver aldrig veta att hårdvara finns. \\
+\code{driver::can::ByteTransport} & \textbf{Drivrutinen själv.} Samma \code{Spi}-kod som flashas
+  till målet kan köras på din laptop mot en transport du skriptar. \\
+\end{booktable}
+
+Den andra sömmen är inte uppenbar, och den kommer i \kapref{ch:byte}. Utan den går \code{Spi} bara
+att köra på riktig hårdvara --- och den finns först i \kapref{ch:bringup}, näst sist i kursen, på
+ett kort som samtidigt felsöks av någon annan.
+
+\textbf{Regeln som följer, och som en granskare ska leta efter: ingen fil ovanför
+\code{driver/can/interface.hpp} får innehålla ordet SPI.}
+
+\subsection{Sömmen har redan lönat sig en gång}
+
+Argumentet för ett interface brukar vara hypotetiskt --- *tänk om hårdvaran byts ut*. Här är det
+inte hypotetiskt.
+
+En tidigare version av den här konstruktionen nådde registren via \textbf{minnesmappad I/O} på
+basadressen \code{0xFF200000}. Det förutsätter en processor med en adressbuss ut mot FPGA-väven,
+och mikrokontrollern i det här systemet har ingen sådan buss. Registren nås över SPI i stället.
+
+Allt ovanför \code{Interface} hade överlevt den ändringen \textbf{oförändrat}. Det är hela
+argumentet, demonstrerat på riktig kod.
+
+\subsection{Sändningssekvensen}
+
+Att skicka en frame (\code{id 0x123}, \code{dlc 2}, data \code{AA BB}) är fem registerskrivningar
+och en pollning:
+
+\begin{console}
+1. läs   STATUS        -> bit 0 satt? annars: upptaget, returnera false
+2. skriv TX_ID         = 0x00000123
+3. skriv TX_DLC        = 0x00000002
+4. skriv TX_DATA_LO    = 0xAABB0000
+5. skriv TX_DATA_HI    = 0x00000000
+6. skriv TX_SEND       = 0x00000001      -> STATUS bit 0 går låg
+   ...
+7. polla STATUS        -> bit 0 tillbaka: porten är fri
+8. läs   ERROR_FLAGS   -> 0 = framen gick ut, 1 = något gick fel
+\end{console}
+
+Och att ta emot en:
+
+\begin{console}
+1. läs   STATUS        -> bit 1 satt? annars: ingen frame, returnera false
+2. läs   RX_ID, RX_DLC
+3. läs   RX_DATA_LO, RX_DATA_HI, packa upp, maskera mot RX_DLC
+4. skriv RX_ACK        = 0x00000001      -> STATUS bit 1 går låg
+\end{console}
+
+\code{TX_SEND} \textbf{måste} skrivas sist. Den skrivningen betyder inte "spara ett värde" utan
+"börja sända nu", och kontrollern läser då de övriga registren. Skriv triggern först och du
+skickar förra framens innehåll --- vilket vid bring-upen ser ut som en nod som ligger exakt en
+frame efter.

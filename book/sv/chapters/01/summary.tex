@@ -1,0 +1,17 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item En seriell länk levererar bytes och ingenting annat. Var ett meddelande börjar, hur långt
+    det är, vad det betyder, om det kom fram helt och vem det kom från är frågor strömmen inte
+    besvarar.
+  \item En \textbf{frame} är en avgränsad, självbeskrivande enhet som besvarar dem. Kursens frame
+    har åtta fält: SOF, LEN, TYPE, DST, SRC, SEQ, DATA och CHK.
+  \item \textbf{SOF} är två bytes därför att en byte förr eller senare dyker upp i nyttolasten.
+    SOF ensamt räcker ändå inte --- längd och checksumma måste också stämma.
+  \item \textbf{LEN} behövs därför att mottagaren läser en byte i taget och inte kan se framåt.
+  \item \textbf{Checksumman} ger integritet, inte leveransgaranti. Den säger att framen kom fram
+    hel, inte att den kom fram.
+  \item Flerbytesfält skrivs \textbf{big-endian}, byte för byte med explicita skiftningar ---
+    aldrig genom att kopiera minnet.
+\end{itemize}

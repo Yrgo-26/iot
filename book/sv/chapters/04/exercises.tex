@@ -1,0 +1,54 @@
+\section*{Övningar}
+\addcontentsline{toc}{section}{Övningar}
+
+Övningarna görs med papper och penna, och lösningarna står i
+\hyperref[ch:losningar]{appendix~A}.
+
+\exercise{Vem gör vad}{Resonemang}
+\label{ex:4:1}
+Fyll i, för varje mekanism från \kapref{ch:bussar}: vem utför den i ett CAN-system, och var?
+Ramsynkronisering, längdfält, adressering, sekvensnummer, checksumma, kvittens,
+kollisionshantering, timeout och omsändning, dubblettdetektering.
+
+Två av raderna har inget självklart svar. Vilka, och varför?
+
+\exercise{Packa en frame}{Räkning}
+\label{ex:4:2}
+Du ska skicka en frame med \code{id = 0x2A7}, \code{dlc = 5} och databytesen
+\code{01 02 03 04 05}. Skriv upp de fem registervärdena som ska skrivas, i den ordning de ska
+skrivas, på hexadecimal form. Varför spelar ordningen roll?
+
+\exercise{Packa upp en frame}{Räkning}
+\label{ex:4:3}
+Du läser \code{RX_ID = 0x00000481}, \code{RX_DLC = 0x00000003},
+\code{RX_DATA_LO = 0xDEADBE00} och \code{RX_DATA_HI = 0x00000000}.
+\begin{enumerate}[a)]
+  \item Vilken identifierare kom framen från?
+  \item Vilka databytes innehåller den, i ordning?
+  \item Vad ska \code{frame.data[3]} till \code{frame.data[7]} innehålla efter \code{receive()}?
+  \item Vilket register måste skrivas innan nästa frame kan tas emot, och med vilket värde?
+\end{enumerate}
+
+\exercise{Fyra påståenden}{Resonemang}
+\label{ex:4:4}
+Tre av följande beskriver en bugg. Vilka, och vad går fel?
+\begin{enumerate}[a)]
+  \item "Efter \code{send()} pollar vi \code{STATUS} bit 0 och returnerar \code{true} när den
+    kommer tillbaka --- då vet vi att framen kom fram."
+  \item "\code{clearError()} skriver \code{0x1} till \code{ERROR_FLAGS} för att nollställa
+    felbiten."
+  \item "\code{receive()} kopierar alltid alla åtta bytes från \code{RX_DATA_LO}/\code{HI} till
+    \code{frame.data}."
+  \item "\code{send()} kontrollerar \code{STATUS} bit 0 innan den skriver \code{TX_SEND}."
+\end{enumerate}
+
+\exercise{Lagergränsen}{Resonemang}
+\label{ex:4:5}
+Sant eller falskt, med motivering i en mening:
+\begin{enumerate}[a)]
+  \item \code{app::EchoNode} får inkludera \code{driver/can/spi.hpp}.
+  \item \code{driver::can::Spi} får inkludera \code{driver/can/interface.hpp}.
+  \item \code{driver::can::Stub} behöver en \code{ByteTransport}.
+  \item \code{ByteTransport} behöver känna till registerkartan.
+  \item Ett test av \code{EchoNode} behöver en \code{ByteTransport}.
+\end{enumerate}

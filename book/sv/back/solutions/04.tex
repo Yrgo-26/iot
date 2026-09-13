@@ -1,0 +1,59 @@
+\section*{Kapitel 4 --- CAN, registerkartan och arkitekturen}
+\addcontentsline{toc}{section}{Kapitel 4 --- CAN, registerkartan och arkitekturen}
+
+\solution{ex:4:1}{Vem gör vad}
+Ramsynkronisering, längdfält, checksumma, kvittens och kollisionshantering görs alla av
+\textbf{hårdvaran}: SOF och EOF, DLC, CRC-15, ACK-biten inuti framen, och arbitreringen som bussen
+löser elektriskt.
+
+De två raderna utan självklart svar är \textbf{adressering} och \textbf{sekvensnummer}. CAN har
+ingen destinationsadress och inget sekvensnummer alls: identifieraren beskriver innehållet, och
+behövs ett löpnummer får applikationen lägga det i nyttolasten.
+
+\textbf{Timeout och omsändning} samt \textbf{dubblettdetektering} är ett tredje fall: en
+fullständig CAN-kontroller sköter omsändningen i hårdvara, men den förenklade i den här
+konstruktionen gör det inte --- se \secref{sec:limits}.
+
+\solution{ex:4:2}{Packa en frame}
+Databyte 0 ligger i de mest signifikanta bitarna, och \code{TX_DATA_LO} bär de \emph{första} fyra
+bytesen:
+
+\begin{console}
+TX_ID      = 0x000002A7
+TX_DLC     = 0x00000005
+TX_DATA_LO = 0x01020304
+TX_DATA_HI = 0x05000000
+TX_SEND    = 0x00000001
+\end{console}
+
+Ordningen spelar roll därför att skrivningen till \code{TX_SEND} inte lagrar ett värde utan
+\emph{utlöser en sändning}: kontrollern läser då de övriga registren. Skrivs triggern först skickas
+föregående frames innehåll.
+
+\solution{ex:4:3}{Packa upp en frame}
+\ans{a} \code{0x481}.
+\ans{b} \code{DE AD BE} --- tre bytes, eftersom \code{RX_DLC} är 3 och \code{RX_DATA_LO} bär byte
+0--3 med byte 0 överst.
+\ans{c} Noll. Drivrutinen ska maskera mot \code{dlc}; bytes ovanför den mottagna längden är inte
+framens innehåll, även om hårdvaran råkar nollställa dem.
+\ans{d} \code{RX_ACK}, med \code{0x1}. Bit 0 måste vara satt.
+
+\solution{ex:4:4}{Fyra påståenden}
+\textbf{a, b och c beskriver buggar.}
+
+\ans{a} Bit 0 betyder \emph{porten är fri igen}, inte \emph{framen kom fram} --- en förlorad
+arbitrering ger tillbaka samma bit. Läs \code{ERROR_FLAGS} efteråt.
+\ans{b} \code{ERROR_FLAGS} nollställs bara av ett \emph{helt nollställt} ord. \code{0x1} gör
+ingenting, så felbiten går aldrig ned.
+\ans{c} Bytes ovanför \code{RX_DLC} hör inte till framen. Att kopiera alla åtta rapporterar upp
+till sex bytes som aldrig sändes.
+\ans{d} Korrekt. Utan kontrollen kan en skrivning ske mitt i en pågående sändning.
+
+\solution{ex:4:5}{Lagergränsen}
+\ans{a} Falskt. \code{EchoNode} ligger ovanför interfacet och får inte känna till någon konkret
+drivrutin.
+\ans{b} Sant. \code{Spi} \emph{är} en \code{Interface} och måste inkludera den.
+\ans{c} Falskt. Stubben simulerar CAN i minnet och har ingen transport.
+\ans{d} Falskt. Transporten flyttar bytes och vet ingenting om register --- det är hela poängen
+med att den är dum.
+\ans{e} Falskt. \code{EchoNode} testas genom \code{Stub}, som inte har någon transport.

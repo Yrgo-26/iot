@@ -1,0 +1,123 @@
+\section{SPI on four wires}
+\label{sec:spilines}
+
+\begin{booktable}{@{}llL@{}}
+\thead{Wire} & \thead{Direction} & \thead{Meaning} \\ \midrule
+\code{SCK} & master $\rightarrow$ slave & Clock. Nothing happens without edges on it. \\
+\code{MOSI} & master $\rightarrow$ slave & The master's data. \\
+\code{MISO} & slave $\rightarrow$ master & The slave's data. \\
+\code{SS} & master $\rightarrow$ slave & Active low. Frames the transaction. \\
+\end{booktable}
+
+The most important property: \textbf{SPI is full duplex.} Every clock pulse simultaneously shifts
+one bit out on \code{MOSI} and one bit in on \code{MISO}. There is no way to "just read" --- to
+get a byte in you have to send a byte out.
+
+That is why a read sends four dummy bytes of \code{0x00}, and why the four \code{MISO} bytes
+during a write are meaningless junk.
+
+The parameters: SPI mode 0 (the clock idles low, data is sampled on the rising edge), MSB first,
+\code{SCK} at most 1~MHz.
+
+\section{The transaction}
+\label{sec:transaction}
+
+\textbf{Every transaction is exactly five bytes}: one command byte followed by four data bytes,
+with \code{SS} low the whole way.
+
+\begin{console}
+Bit:      7    6    5    4    3    2    1    0
+        +----+----+----+----+----+----+----+----+
+        | W  | 0  | 0  | 0  |   register index  |
+        +----+----+----+----+----+----+----+----+
+\end{console}
+
+\code{W = 1} means a write, \code{W = 0} a read. Bits 6--4 are reserved and are to be \code{0}.
+Bits 3--0 are the register index, 0--12, from the register map in \kapref{ch:can}.
+
+\subsection{Writing}
+
+The master sends the register value in the four data bytes, \textbf{MSB first}. The slave commits
+the assembled value \textbf{only once the fifth byte is complete}.
+
+\subsection{Reading}
+
+At the end of the command byte the slave \textbf{latches the register's current value once}, into
+its response shifter. The four data bytes then clock that value out.
+
+\textbf{The latching rule is part of the contract, not an implementation detail.} The four bytes
+always belong to \emph{one} coherent sample of the register, taken in a single instant. Without
+that rule a \code{STATUS} read could have been stitched together from two points in time --- the
+TX-ready bit from before a transmission and the RX-valid bit from after. That would have been a
+bug appearing about once in a thousand times and never reproducible.
+
+\subsection{The \texorpdfstring{\code{SS}}{SS} rules}
+
+Three rules, and all three have cost somebody an evening:
+
+\begin{itemize}
+  \item \textbf{One transaction per low \code{SS} period.} The master has to let \code{SS} go high
+    between transactions.
+  \item \textbf{Back-to-back does not work, and fails silently.} A sixth byte arriving while
+    \code{SS} is still low is \emph{discarded} --- it is not interpreted as a new command byte.
+    The slave being idle is therefore not enough.
+  \item \textbf{An abort has no side effects.} If \code{SS} goes high before the fifth byte, the
+    transaction is abandoned entirely: nothing is committed, no trigger fires. That is what makes
+    the slave self-healing after a glitch.
+\end{itemize}
+
+That is why \code{ByteTransport} in \kapref{ch:byte} has \code{select()} and \code{deselect()} as
+methods of their own: the framing is the driver's decision, not the transport's.
+
+\subsection{\texorpdfstring{\code{MISO}}{MISO} outside a read}
+
+The byte the master clocks out \textbf{during the command byte} is meaningless. The slave loads
+its response shifter at the \emph{end} of the command byte, so what leaves during it is leftovers
+from last time. \textbf{Discard it.}
+
+\subsection{A complete example}
+
+Sending a frame (\code{id 0x123}, \code{dlc 2}, data \code{AA BB}):
+
+\begin{console}
+Write TX_ID      : 81 00 00 01 23
+Write TX_DLC     : 82 00 00 00 02
+Write TX_DATA_LO : 83 AA BB 00 00
+Write TX_DATA_HI : 84 00 00 00 00
+Write TX_SEND    : 85 00 00 00 01
+Read  STATUS     : 00 xx xx xx xx   -> MISO gives 00 00 00 00 during transmission,
+                                      then 00 00 00 01 when the port is free again.
+\end{console}
+
+Read off the command byte in every line: \code{0x81} is the write bit plus index 1, that is,
+\code{TX_ID}. The \code{0x00} on the last line is a read of index 0.
+
+Note \code{83 AA BB 00 00}: \textbf{data byte 0 in the most significant position}. It is the same
+packing on both sides of the wire.
+
+\section{What it costs in time}
+\label{sec:timing}
+
+A transaction is 5 bytes = 40 bits. At 1~MHz the clocking takes 40~µs, plus \code{SS} handling.
+Reckon on \textbf{40--50~µs per transaction}:
+
+\begin{narrowtable}{@{}lrl@{}}
+\thead{Operation} & \thead{Transactions} & \thead{Roughly} \\ \midrule
+\code{hasError()} & 1 & 45~µs \\
+\code{receive()}, no frame & 1 & 45~µs \\
+\code{receive()}, one frame & 6 & 270~µs \\
+\code{send()} & 6 & 270~µs \\
+\end{narrowtable}
+
+Set that against the CAN side: a maximal CAN frame is around 130 bits, that is, \textbf{130~µs} at
+1~Mbit/s.
+
+\begin{limitation}
+\textbf{A \code{send()} takes longer than the frame it sends.} The SPI link, not the CAN bus, is
+the bottleneck in this design.
+
+\textbf{And the polling can miss frames.} The controller does not buffer: if two frames arrive
+close together and your \code{receive()} takes 270~µs, the second has time to overwrite the first.
+That is the hardware's documented limitation, not your bug --- but it is your code that notices
+it.
+\end{limitation}

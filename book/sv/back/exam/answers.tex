@@ -1,0 +1,193 @@
+\chapter{Svar på övningsduggan}
+\label{ch:ovningssvar}
+
+Uträkningarna står med, inte bara resultaten.
+
+\section*{Del A}
+
+\solution{ex:d:1}{Bygg två frames}
+\ans{a} \code{LEN = 0} eftersom en \code{StatusRequest} saknar nyttolast, \code{TYPE = 0x02},
+\code{DST = 0x25}, \code{SRC = 0x17}, \code{SEQ = 0x7F05}.
+
+Checksumman: $\mathtt{A5} + \mathtt{F7} + \mathtt{00} + \mathtt{02} + \mathtt{25} + \mathtt{17} +
+\mathtt{7F} + \mathtt{05} = 165 + 247 + 0 + 2 + 37 + 23 + 127 + 5 = 606 = \mathtt{0x025E}$.
+
+\begin{console}
+A5 F7 00 02 25 17 7F 05 02 5E
+\end{console}
+
+\ans{b} Nu byter adresserna plats: \code{DST = 0x17}, \code{SRC = 0x25}. \code{LEN = 1},
+\code{TYPE = 0x03}, och en databyte \code{0x16}. \code{SEQ} är detsamma.
+
+Checksumman: $606 - \mathtt{0x02} + \mathtt{0x03} + \mathtt{0x01} + \mathtt{0x16} =
+606 - 2 + 3 + 1 + 22 = 630 = \mathtt{0x0276}$.
+
+\begin{console}
+A5 F7 01 03 17 25 7F 05 16 02 76
+\end{console}
+
+\solution{ex:d:2}{Frame-parsern}
+\ans{a} I \code{WaitForSof1} kastar parsern varje byte som inte är \code{0xA5}. Den står stilla
+tills strömmen börjar se ut som en frame. I \code{WaitForSof2} väntar den på \code{0xF7}, och går
+vidare till \code{WaitForLen} om den kommer.
+
+\ans{b} Det \emph{nästan} rätta svaret är att gå tillbaka till \code{WaitForSof1} och kasta byten.
+Det \emph{rätta} är att stanna kvar i \code{WaitForSof2} om byten är \code{0xA5}.
+
+Skälet: den byte som just kom kan vara den första byten i en riktig frame. Kastar parsern den
+missar den en giltig frame som börjar direkt efter en falsk SOF-start --- vilket händer så fort
+\code{0xA5} förekommer i en nyttolast strax före en verklig framestart.
+
+\solution{ex:d:3}{Buss och routing}
+\ans{a} I noden. Bussen är en fysisk ledning som levererar varje byte till varje nod; den kan inte
+läsa adresser, och den känner inte till att det finns frames. Varje nod måste därför själv jämföra
+\code{DST} med sin egen adress.
+
+\ans{b} Ignorera framen helt. Den ska \emph{inte} skicka \code{Nack}, eftersom framen inte är
+felaktig --- den är bara adresserad till någon annan. Skickade varje nod \code{Nack} på varje frame
+den inte var mottagare för skulle varje meddelande på en buss med $n$ noder generera $n-2$
+felaktiga negativa kvittenser, och sändaren skulle dessutom inte kunna skilja dem från ett
+verkligt fel.
+
+\solution{ex:d:4}{Tillförlitlighet}
+\ans{a} A startar en timer när framen skickas. Uteblir \code{Ack} tills timern löper ut skickar A
+om framen och startar timern på nytt, upp till ett bestämt antal försök; därefter rapporteras ett
+permanent fel.
+
+\code{SEQ} ska vara \textbf{samma}. Ett nytt sekvensnummer skulle göra omsändningen till ett nytt
+meddelande, och B skulle inte kunna känna igen den som en upprepning --- vilket är exakt vad
+dubblettdetekteringen behöver.
+
+\ans{b} B ska \textbf{skicka \code{Ack} igen}, och \textbf{inte} köra applikationslogiken en andra
+gång.
+
+Att inte köra logiken igen är poängen med dubblettdetekteringen: kommandot är redan utfört. Att
+ändå kvittera är den del som glöms --- A väntar fortfarande på sin kvittens, och tystnad leder bara
+till ännu en omsändning och därmed till en oändlig cykel.
+
+\solution{ex:d:5}{Byte-ström och felmodell}
+\ans{a} Vid index \textbf{4} (nollindexerat): \code{32 74 00 FF} är skräp, och \code{A5 F7} på
+index 4--5 är SOF.
+
+Parsern kastar bytesen före: de tas emot i \code{WaitForSof1} och förkastas en och en eftersom
+ingen av dem är \code{0xA5}.
+
+\ans{b} \code{LEN} är fortfarande 3, så parsern samlar in tre databytes --- men nu blir de
+\code{10 30 02} i stället för \code{10 20 30}. Därefter läser den \code{C2} som den första
+checksummabyten och väntar på den andra.
+
+Parsern hamnar alltså i \code{WaitForChk2} och står kvar där tills nästa byte kommer, vilken den
+än är. När den kommer är framningen klar men checksumman stämmer inte, så \code{extractFrame()}
+returnerar \code{false} och framen förkastas.
+
+Notera att \code{isFrameReady()} mycket väl kan bli sann --- framningen lyckades. Det är
+valideringen som fångar felet, och det är därför de två frågorna är åtskilda.
+
+\section*{Del B}
+
+\solution{ex:d:6}{CAN-bussen}
+\ans{a} Identifieraren beskriver \textbf{vad framen innehåller} --- inte vem den är till. De två
+rollerna är:
+\begin{enumerate}
+  \item \textbf{Innehåll:} mottagarna filtrerar på den och avgör själva om framen angår dem.
+  \item \textbf{Prioritet:} den avgör vem som vinner en arbitrering, där lägre numeriskt värde
+    vinner.
+\end{enumerate}
+
+\ans{b} \textbf{B vinner}, eftersom \code{0x0FF} är numeriskt lägre än \code{0x100}. Binärt, elva
+bitar: A sänder \code{00100000000} och B \code{00011111111}, och vid bit 3 sänder A recessivt där
+B sänder dominant.
+
+Förloraren A upptäcker det omedelbart --- den sänder en recessiv bit och läser tillbaka en
+dominant --- slutar sända, blir mottagare för B:s frame, och försöker igen när bussen är ledig.
+
+Ingen bussmästare krävs eftersom bussen själv är en OCH-funktion: en dominant bit skriver över en
+recessiv, så konflikten löses av elektriken medan den uppstår. Ingen ram förstörs och ingen tid
+går förlorad.
+
+\ans{c} Tre av följande: ramsynkronisering (kontrollern, SOF och EOF), längdfält (kontrollern,
+DLC), checksumma (kontrollern, CRC-15), kvittens (kontrollern, ACK-biten inuti framen),
+kollisionshantering (bussen själv, genom arbitrering).
+
+\solution{ex:d:7}{Registerkartan}
+\ans{a} Databyte 0 ligger i de mest signifikanta bitarna, och \code{TX_DATA_LO} bär de \emph{första}
+fyra bytesen:
+
+\begin{console}
+TX_ID      = 0x000002A7
+TX_DLC     = 0x00000005
+TX_DATA_LO = 0x01020304
+TX_DATA_HI = 0x05000000
+TX_SEND    = 0x00000001
+\end{console}
+
+Ordningen spelar roll därför att skrivningen till \code{TX_SEND} inte lagrar ett värde utan
+\emph{utlöser en sändning}. Kontrollern läser då de övriga registren. Skrivs triggern först skickas
+föregående frames innehåll.
+
+\ans{b} \code{RX_ID = 0x481} ger identifieraren \textbf{\code{0x481}} (inom 11 bitar, alltså
+giltig). \code{RX_DLC = 3} betyder tre databytes, och \code{RX_DATA_LO = 0xDEADBE00} ger byte 0--3
+som \code{DE AD BE 00}. Framen innehåller alltså \textbf{\code{DE AD BE}}.
+
+\code{frame.data[3]} till \code{frame.data[7]} ska vara \textbf{noll}. Drivrutinen ska maskera mot
+\code{dlc}: bytesen ovanför den mottagna längden är inte ramens innehåll, även om hårdvaran råkar
+nollställa dem.
+
+\ans{c} \code{RX_ACK}, med värdet \code{0x1} --- bit 0 måste vara satt.
+
+Glöms den står \code{STATUS} bit 1 kvar för alltid. Varje \code{receive()} returnerar då
+\code{true} med samma frame, i en oändlig loop, och ingen ny frame kan tas emot.
+
+\solution{ex:d:8}{SPI-transaktionen}
+Kommandobyten är \code{W} i bit 7, nollor i bitarna 6--4, och registerindexet i bitarna 3--0.
+
+\ans{a} \code{0x81} = skrivbit satt, index 1: en \textbf{skrivning till \code{TX_ID}} med värdet
+\code{0x000007FF}. Det är det största värde registret kan hålla --- elva bitar ettor.
+
+\ans{b} \code{0x85} = skrivning, index 5: en \textbf{skrivning till \code{TX_SEND}} med värdet
+\code{0x1}. Den \textbf{utlöser en sändning}; registret lagrar ingenting.
+
+\ans{c} \code{0x8B} = skrivning, index 11: en \textbf{skrivning till \code{ERROR_FLAGS}} med värdet
+\code{0x0}. Det är den \emph{enda} skrivning som nollställer felbiten --- ett nollskilt värde hade
+ignorerats.
+
+\ans{d} \code{0xC2} = \code{1100 0010}. Bit 7 är satt (skrivning) \emph{och bit 6 är satt}, men
+bitarna 6--4 är reserverade och måste vara noll. Kommandot är därför \textbf{ogiltigt}: ingen
+skrivning verkställs, ingen läsning låses. Slaven konsumerar ändå alla fem bytes och återgår till
+vila, och rapporterar ingenting --- det finns ingen felkanal på det här lagret.
+
+\ans{e} En läsning har bit 7 låg, så kommandobyten är bara indexet. \code{RX_DLC} har index 7, och
+de fyra databyten är dummybytes:
+
+\begin{console}
+07 00 00 00 00
+\end{console}
+
+\solution{ex:d:9}{Klibbiga bitar och begränsningar}
+\ans{a} På 50~MHz är en klockcykel 20~ns, och 40~µs motsvarar $40 \cdot 10^{-6} \cdot 50 \cdot
+10^{6} = 2000$ cykler. Sannolikheten att en pollning råkar träffa just den enda cykel pulsen varar
+är alltså ungefär 1 på 2000: mjukvaran skulle missa nästan varje händelse. Registerbanken gör om
+pulsen till en \textbf{nivå som står kvar}, så att den går att polla.
+
+Nollställningen måste vara en skrivning därför att en automatisk nollställning vid läsning gör det
+omöjligt att läsa statusen två gånger --- och därmed omöjligt att först kontrollera en bit och
+sedan agera på den. En uttrycklig nollställning skiljer dessutom \emph{jag har sett händelsen} från
+\emph{jag har hanterat den}, och det är mjukvaran, inte hårdvaran, som vet när det senare är sant.
+
+\ans{b} Drivrutinen ska vänta tills \code{STATUS} bit 0 kommer tillbaka --- porten är fri --- och
+\textbf{därefter läsa \code{ERROR_FLAGS}}. Är felbiten satt gick sändningen inte igenom.
+
+Den kan fortfarande \textbf{inte} ta reda på \emph{varför}. Felflaggan är en enda bit för fyra
+orsaker: förlorad arbitrering, stoppfel, misslyckad CRC och mottagen fjärrframe. Retry-logik som
+behandlar dem olika går därför inte att skriva mot det här gränssnittet.
+
+\ans{c} \code{ERROR_FLAGS} är en lås-och-nollställ-på-noll-konstruktion: \textbf{bara} en skrivning
+där hela ordet är noll nollställer låsningen. En skrivning av \code{0x1} gör ingenting alls.
+
+Symptomet: felbiten går aldrig ned. \code{hasError()} returnerar \code{true} för alltid efter det
+första felet, och all felhantering ovanför slutar fungera --- en retry-loop som läser felflaggan
+kommer att tro att varje sändning misslyckas.
+
+Det upptäcks \textbf{inte} av ett test som bara kontrollerar vilka bytes som skickades, eftersom
+transaktionen ser korrekt ut. Det upptäcks av ett test mot en simulerad registerbank, som modellerar
+nollställningsregeln --- eller, betydligt senare och dyrare, vid bring-upen.

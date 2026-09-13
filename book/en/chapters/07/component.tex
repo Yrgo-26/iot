@@ -1,0 +1,159 @@
+\section{The bug a unit test cannot see}
+\label{sec:interaction}
+
+A \textbf{unit test} tests one unit in isolation. A \textbf{component test} tests several parts
+working together, still without hardware: here \code{app::EchoNode} plus
+\code{driver::can::Stub}, connected through \code{driver::can::Interface}.
+
+The difference shows most clearly in the kind of bug they catch. Suppose \code{run()} is written
+like this:
+
+\begin{cppcode}
+Frame frame{};
+if (!myDriver.receive(frame)) { return; }
+
+Frame response{};
+response.id  = myResponseId;
+response.dlc = myDriver.receive(frame) ? frame.dlc : 0U;   // wrong: calls receive() again
+\end{cppcode}
+
+Every unit test is still green. \code{Stub} does exactly what it promises, and so does
+\code{Frame}. The bug is in the \textbf{interaction}: the second call consumes the state the first
+one left behind.
+
+\textbf{That is the whole point.} Interaction bugs --- one call too many, a call in the wrong
+order, an ignored return value --- are the most common kind of fault in driver code, and they live
+between the units, not in them.
+
+\section{\texorpdfstring{\code{app::EchoNode}}{app::EchoNode}}
+\label{sec:echonode}
+
+An application component that does one thing: reads a frame and echoes it back with a different
+ID.
+
+\begin{cppcode}
+namespace driver::can { class Interface; }
+
+namespace app
+{
+class EchoNode
+{
+public:
+    explicit EchoNode(driver::can::Interface& driver, std::uint16_t responseId) noexcept;
+
+    void run() noexcept;
+    [[nodiscard]] std::uint32_t echoCount() const noexcept;
+
+private:
+    driver::can::Interface& myDriver; /**< Driver used for all traffic. Not owned. */
+    std::uint16_t myResponseId;
+    std::uint32_t myEchoCount;
+};
+} // namespace app
+\end{cppcode}
+
+\subsection{The layer boundary, in one line}
+
+Note what the header does \emph{not} include: \code{stub.hpp}, \code{spi.hpp},
+\code{byte_transport.hpp}. Only a forward declaration.
+
+\textbf{That line is the architecture's boundary expressed in code.} A reviewer who sees
+\code{#include "driver/can/spi.hpp"} here should stop the PR on the spot. The rule, which holds
+for the whole project: no file above \code{driver/can/interface.hpp} may contain the word SPI.
+
+\subsection{Dependency injection}
+
+\code{EchoNode} \textbf{does not create} its driver. It is given one. The alternative is worth
+looking at to see what it costs:
+
+\begin{cppcode}
+class EchoNode
+{
+public:
+    EchoNode() : myDriver{} {}   // creates its own Spi
+private:
+    driver::can::Spi myDriver;   // no
+};
+\end{cppcode}
+
+That variant is impossible to test: there is no way to give it a stub, and therefore no way to run
+it without an FPGA on the desk. It also binds the application to a concrete driver type, which
+makes the whole \code{Interface} pointless.
+
+\textbf{Why a reference and not a pointer?} A reference cannot be null and cannot be swapped after
+construction. Both are properties we want.
+
+\textbf{Why not \code{std::unique_ptr}?} Because \code{EchoNode} does not \emph{own} the driver.
+The ownership sits with the factory in \kapref{ch:avr}, and the driver's lifetime is longer than
+the component's. The Doxygen comment explicitly says "Not owned", and that is worth writing out.
+
+\subsection{Two details in \texorpdfstring{\code{run()}}{run()}}
+
+\textbf{The loop runs to \code{frame.dlc}, not to \code{MaxDataLen}.} Copying eight bytes would
+have "worked" since the rest are zeroes anyway --- but \code{response.dlc} says how many apply,
+and code that copies more than it claims to copy stops being right when some other assumption
+changes. Exactly the same reasoning as the masking in \kapref{ch:driver}.
+
+\textbf{\code{myEchoCount} is incremented only when \code{send()} succeeded.} The counter means
+"frames echoed", not "attempts".
+
+\section{Reading the component test}
+\label{sec:readcomp}
+
+\begin{cppcode}
+TEST(EchoNode, echoesInjectedFrameWithResponseId)
+{
+    // Arrange.
+    driver::can::Stub stub{};
+    app::EchoNode node{stub, 0x200U};
+
+    driver::can::Frame incoming{};
+    incoming.id      = 0x123U;
+    incoming.dlc     = 2U;
+    incoming.data[0] = 0xAAU;
+    incoming.data[1] = 0xBBU;
+    stub.inject(incoming);
+
+    // Act.
+    node.run();
+
+    // Assert.
+    driver::can::Frame echoed{};
+    EXPECT_TRUE(stub.receive(echoed));
+    EXPECT_EQ(echoed.id, 0x200U);
+    EXPECT_EQ(node.echoCount(), 1U);
+}
+\end{cppcode}
+
+The test has two roles at once: it \textbf{feeds in} traffic with \code{inject()}, and it
+\textbf{inspects} outgoing traffic with \code{receive()} --- both through the same test double.
+
+What the supplied suite covers:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Case} & \thead{What it proves} \\ \midrule
+No injected frame & \code{echoCount()} unchanged. \\
+One injected frame & The right \code{id}, \code{dlc} and data are echoed; the counter goes up by
+  one. \\
+Two frames, two \code{run()} calls & The counter becomes 2. \\
+One frame, \code{run()} \textbf{twice} & The counter becomes 1 --- not 2. Catches the bug in
+  \secref{sec:interaction}. \\
+\code{dlc = 0} and \code{dlc = 8} & A pair of boundary values. \\
+\code{send()} fails & The counter does not go up. \\
+\end{booktable}
+
+\subsection{The same pattern, one layer down}
+
+This is the only thing you need to take with you from here. In \kapref{ch:testning} the supplied
+suite does \textbf{exactly the same thing}, one seam further down: \code{BankTransport} replaces
+\code{Stub}, \code{Spi} is what is being tested, and the test scripts what the hardware answers
+instead of which frames come in.
+
+That it \emph{is} the same pattern is no coincidence --- it is what you get from putting the seams
+in the right places.
+
+\subsection{What it does not prove}
+
+That \code{EchoNode} interacts correctly with \emph{some} implementation of \code{Interface}.
+Nothing about \code{Spi}, which does not exist yet, and nothing about whether the register map has
+been read correctly.

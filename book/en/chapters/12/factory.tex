@@ -1,0 +1,113 @@
+\section{The factory}
+\label{sec:factory}
+
+Every part now exists. What is missing is the glue:
+
+\begin{console}
+EchoNode         needs an   Interface&
+Spi              IS an      Interface,  and needs a ByteTransport&
+AvrSpiTransport  IS a       ByteTransport
+\end{console}
+
+Somebody has to create the objects, in the right order, and keep them alive as long as the program
+runs. That somebody should not be \code{main}, and definitely not \code{EchoNode}.
+
+\begin{cppcode}
+class Factory
+{
+public:
+    Factory() noexcept;
+
+    Factory(const Factory&)            = delete;
+    Factory(Factory&&)                 = delete;
+    Factory& operator=(const Factory&) = delete;
+    Factory& operator=(Factory&&)      = delete;
+
+    /**
+     * @brief Get the CAN driver.
+     *
+     * @return Reference to the driver, valid for the lifetime of the factory.
+     */
+    [[nodiscard]] driver::can::Interface& canDriver() noexcept;
+
+private:
+    AvrSpiTransport myTransport; /**< Byte transport. Declared before the driver that uses it. */
+    driver::can::Spi myDriver;   /**< The CAN driver, bound to myTransport. */
+};
+\end{cppcode}
+
+\textbf{The declaration order is a requirement, not style.} Members are constructed in the order
+they are declared, and \code{myDriver} takes a reference to \code{myTransport} in its constructor.
+Swap the two lines and you bind a reference to an object that has not been constructed yet. The
+compiler says nothing.
+
+\textbf{The return type is \code{Interface&}, not \code{Spi&}.} That is the whole point. The
+caller gets something it can use, not something it can recognise.
+
+\textbf{No heap.} The objects are members, the factory sits on the stack in \code{main}, and
+everything has a static size. On a freestanding target there is no \code{std::unique_ptr} to reach
+for --- nor is one needed. Smart pointers in a factory example solve an ownership problem that does
+not exist when the number of objects is known at compile time.
+
+\section{\texorpdfstring{\code{main}}{main}}
+\label{sec:main}
+
+\begin{cppcode}
+int main()
+{
+    Factory factory{};
+    app::EchoNode node{factory.canDriver(), ResponseId};
+
+    while (true)
+    {
+        node.run();
+    }
+}
+\end{cppcode}
+
+Five lines. \code{main} does three things and nothing more: creates the factory, creates the
+application component with what the factory hands out, and runs.
+
+The words \code{Spi}, \code{AvrSpiTransport}, \code{SPI0} and \code{PORTC} do not appear.
+\textbf{If you can read your \code{main} without knowing which hardware the program runs on, you
+have got the architecture right.}
+
+\subsection{The test of the design}
+
+Change one line in the factory:
+
+\begin{cppcode}
+private:
+    driver::can::Stub myDriver;   // was: AvrSpiTransport + Spi
+\end{cppcode}
+
+Compile for the \textbf{host computer}. It should work, and the program should run ---
+\code{EchoNode} echoes frames against an array in memory instead of against a CAN bus.
+
+If it does not, the compiler error points out exactly where some line above the interface
+(\file{driver/can/interface.hpp}) has learnt something about the hardware that it should not know.
+
+It is a test you can run in ten seconds, and it says more about the quality of the architecture
+than any code review.
+
+\section{An application you can debug with}
+\label{sec:debugapp}
+
+\code{EchoNode} is good for proving the architecture and bad for debugging with: it does nothing
+visible. Ahead of \kapref{ch:bringup} it is worth building one more.
+
+\begin{narrowtable}{@{}ll@{}}
+\thead{LED} & \thead{Lights when} \\ \midrule
+Green & A frame has been received and acknowledged. \\
+Yellow & A frame has been sent (\code{send()} returned \code{true}). \\
+Red & \code{hasError()} returned \code{true}. \\
+\end{narrowtable}
+
+Plus a button that sends a frame with a known ID and a known payload.
+
+That is a quarter of an hour's work and it pays for itself immediately at the bench: a red LED
+lighting up when you connect the transceiver says something completely different from a node that
+does nothing at all.
+
+\textbf{Keep it outside \code{EchoNode}.} The LEDs belong to the application, not to the driver,
+and the driver is to remain buildable for the host computer.

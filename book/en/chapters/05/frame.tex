@@ -1,0 +1,72 @@
+\section{\texorpdfstring{\code{driver::can::Frame}}{driver::can::Frame}}
+\label{sec:framecls}
+
+The register map in \kapref{ch:can} says exactly what the hardware can send and receive, and it is
+not much: an identifier, a length and up to eight data bytes. The class mirrors that:
+
+\begin{cppcode}
+namespace driver::can
+{
+/**
+ * @brief A single CAN frame: identifier, data length code and payload.
+ */
+struct Frame
+{
+    /** Maximum number of payload bytes in a CAN frame. */
+    static constexpr std::uint8_t MaxDataLen{8U};
+
+    std::uint16_t id{};               /**< CAN identifier, 11 bits (0x000 - 0x7FF). */
+    std::uint8_t  dlc{};              /**< Data length code, 0 - 8. */
+    std::uint8_t  data[MaxDataLen]{}; /**< Payload. */
+};
+
+/**
+ * @brief Check whether a frame is valid, i.e. whether the hardware can send it.
+ */
+[[nodiscard]] constexpr bool isValid(const Frame& frame) noexcept
+{
+    return (frame.id <= 0x7FFU) && (frame.dlc <= Frame::MaxDataLen);
+}
+
+} // namespace driver::can
+\end{cppcode}
+
+That is the whole file. No \code{.cpp}.
+
+\subsection{Why an aggregate}
+
+\code{Frame} deliberately has no constructor, destructor or member function. The reasons, in turn:
+
+\textbf{It is data, not behaviour.} A frame is something that gets moved: from the application to
+the driver, from the driver into four registers, from the registers out onto the bus.
+
+\textbf{Aggregate initialisation is readable.} With the aggregate,
+\code{Frame frame{0x123U, 2U, {0xAAU, 0xBBU}}} works. Add a single user-declared constructor and
+that line stops compiling. The tests you meet from the next chapter onwards are full of such
+lines.
+
+\textbf{Default member initialisation makes \code{Frame f{}} safe.} The \code{{}} after every
+member means that a default-constructed frame has zeroed fields. Without them, \code{receive()}
+could have handed back junk in the bytes it did not fill.
+
+\subsection{\texorpdfstring{\code{static constexpr}}{static constexpr}, not \texorpdfstring{\code{\#define}}{define}}
+
+\code{MaxDataLen} has a \textbf{type}, a \textbf{scope} and exists in the \textbf{debugger}. A
+\code{#define} has none of that, and on top of that applies from the line it stands on to the end
+of the file, straight through every header included afterwards.
+
+It is also used as the array size, which guarantees that the size of the array and the bounds
+check in \code{isValid()} are the same number.
+
+\subsection{Why \texorpdfstring{\code{isValid()}}{isValid()} is a free function}
+
+Two reasons. It keeps the aggregate intact --- a member function is the first step towards a class
+with invariants, and the next step is a constructor. And it belongs to the \emph{driver}, not to
+the data: the rule comes from this hardware's register widths, not from CAN as a concept.
+
+\begin{aside}
+\note[Rule] The hardware validates nothing. The driver \textbf{must} therefore validate --- and
+\textbf{only} the driver. The temptation to put one more check in the application "just to be
+safe" is to be resisted: two copies of the same rule are two things that have to be kept in step,
+and the day \code{MaxDataLen} changes, only one of them will change with it.
+\end{aside}

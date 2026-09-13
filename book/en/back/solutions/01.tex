@@ -1,0 +1,50 @@
+\section*{Chapter 1 --- Frames}
+\addcontentsline{toc}{section}{Chapter 1 --- Frames}
+
+\solution{ex:1:1}{Build a frame}
+\ans{a} \code{LEN = 0}, \code{TYPE = 0x02}, \code{DST = 0x25}, \code{SRC = 0x17},
+\code{SEQ = 0x7F05}. The checksum becomes
+$\mathtt{A5}+\mathtt{F7}+\mathtt{00}+\mathtt{02}+\mathtt{25}+\mathtt{17}+\mathtt{7F}+\mathtt{05}
+= 606 = \mathtt{0x025E}$:
+
+\begin{console}
+A5 F7 00 02 25 17 7F 05 02 5E
+\end{console}
+
+\ans{b} The addresses swap places, \code{LEN = 1}, \code{TYPE = 0x03}, one data byte \code{0x16}.
+The checksum becomes $630 = \mathtt{0x0276}$:
+
+\begin{console}
+A5 F7 01 03 17 25 7F 05 16 02 76
+\end{console}
+
+\ans{c} Ten bytes: the eight header bytes plus two checksum bytes, with \code{LEN = 0}.
+
+\solution{ex:1:2}{The fields and their purpose}
+Without \textbf{SOF} there is no way to know where a frame begins in the stream. Without
+\textbf{LEN} the receiver does not know when the payload ends, since it reads one byte at a time.
+Without \textbf{TYPE} there is no way to tell what the frame means. Without \textbf{DST} nobody
+knows who it is for, without \textbf{SRC} the receiver cannot answer, and without \textbf{SEQ}
+replies cannot be paired with requests and duplicates cannot be recognised. Without \textbf{CHK}
+no transmission errors are detected.
+
+The two that can be removed in a system with exactly two nodes are \textbf{DST} and \textbf{SRC}:
+with only two parties, the sender and the receiver are given by who received it. That is also
+precisely what makes them indispensable as soon as a third node is added.
+
+\solution{ex:1:3}{Endianness}
+\ans{a} \code{05 7F} --- x86 stores little-endian, that is, the lowest byte first, while the
+protocol requires \code{7F 05}.
+\ans{b} Both sides have the same bug. The serialisation writes \code{05 7F} and the
+deserialisation reads it back as \code{0x7F05}, so the errors cancel each other out as long as
+both ends are built from the same code on the same architecture.
+\ans{c} As soon as the other side is something else: a different architecture, a different
+implementation, or a bus analyser reading the stream according to the specification. Then
+\code{0x7F05} becomes \code{0x057F}.
+
+\solution{ex:1:4}{The limits of the checksum}
+\ans{a} No. A sum is independent of the order, so two swapped bytes give the same sum.
+\ans{b} No. The sum is unchanged, since what was added in one place was subtracted in another.
+\ans{c} For example: swap \code{DST} and \code{SRC} in the frame from exercise~1.1, or change
+\code{0x25} to \code{0x26} and \code{0x17} to \code{0x16}. Both give an identical checksum. A CRC
+would detect either, which is why CAN uses one.

@@ -1,0 +1,118 @@
+\section{Kopplingen}
+\label{sec:wiring}
+
+\subsection{SPI mellan korten}
+
+Fyra ledningar plus matning och jord, enligt kontraktets pinnkonfiguration. Två saker är värda att
+säga ut:
+
+\textbf{\code{VDDIO2} först.} \code{PORTC} är MVIO-domänen och matas därifrån. Utan den kopplingen
+gör porten ingenting alls, och symptomet ser ut precis som en trasig SPI-implementation.
+
+\textbf{Gemensam jord är inte valfritt.} Två kort utan gemensam jord kommunicerar inte, och
+symptomet är obegripligt.
+
+\subsection{CAN-sidan}
+
+FPGA-nodens CAN-sida är en \textbf{enledarbuss med öppen dränering} på tre GPIO-pinnar:
+\code{tx_bus} (vad noden driver), \code{bus_en} (om den driver alls) och \code{rx_bus} (bussens
+nivå in).
+
+För att en bussanalysator ska kunna se trafiken måste den enledarbussen bli en riktig
+\textbf{differentiell} CAN-buss. Det är transceiverns jobb, och dess sändaringång ska vara
+\textbf{låg för en dominant bit}:
+
+\begin{narrowtable}{@{}llll@{}}
+\thead{\code{bus_en}} & \thead{\code{tx_bus}} & \thead{Noden} & \thead{Transceiverns ingång} \\ \midrule
+0 & --- & driver inte & 1 (recessiv) \\
+1 & 0 & dominant & 0 \\
+1 & 1 & recessiv & 1 \\
+\end{narrowtable}
+
+Hur de två signalerna slås ihop till den enda ledningen är hårdvarusidans del av kopplingen; stäm
+av det innan du kopplar. En nod vars \code{bus_en} ignorerats driver bussen hela tiden och
+blockerar alla andra.
+
+\textbf{Terminering: 120~\textohm{} i vardera änden}, inte i mitten och inte fler än två. En
+felterminerad buss fungerar ofta ändå på en kort kabel, och slutar fungera precis när du börjat
+lita på den.
+
+\section{Stegen}
+\label{sec:ladder}
+
+Klättra dem i ordning. Varje steg har ett eget kvitto, och poängen är att \textbf{aldrig ha mer än
+en okänd sak åt gången}. Hoppa över ett steg och du felsöker fyra lager samtidigt.
+
+\begin{booktable}{@{}llL@{}}
+\thead{Steg} & \thead{Gör} & \thead{Kvitto} \\ \midrule
+0 & Matning och jord & MVIO-statusen rapporterar att \code{VDDIO2} är inom intervallet. \\
+1 & \code{MOSI} till \code{MISO}, utan FPGA & Du får tillbaka exakt den byte du skickade. Prova
+  \code{0x00}, \code{0xFF}, \code{0xAA}, \code{0x55}. \\
+2 & Koppla in FPGA; skriv och läs \code{TX_ID} & \code{0xFFFFFFFF} läses tillbaka som
+  \code{0x000007FF}. \\
+3 & Läs \code{STATUS} upprepat & \code{0x00000001} --- TX klar satt, övriga låga. \\
+4 & Koppla in transceivern; kör en \code{send()} & Aktivitet på bussen; \code{STATUS} bit 0 går
+  låg och kommer tillbaka. \\
+5 & Låt en andra nod sända & \code{receive()} returnerar \code{true} med rätt innehåll. \\
+\end{booktable}
+
+Två av stegen förtjänar en kommentar.
+
+\textbf{Steg 1 är \code{AvrSpiTransport}s enda test.} Det är den enda klassen i projektet som
+inget automattest täcker, eftersom den pratar med ett fysiskt register. Fungerar loopbacken inte
+ligger felet i din kod eller i konfigurationen --- FPGA:n är inte inkopplad och kan inte vara
+orsaken.
+
+\textbf{Steg 2 är det avgörande.} Maskeringen till elva bitar bevisar att du pratar med
+\emph{registerbanken} och inte med ett eko av din egen ledning. En loopback ger tillbaka det du
+skickade; en registerbank ger tillbaka det den lagrade.
+
+\section{Felsökning}
+\label{sec:troubleshooting}
+
+\begin{booktable}{@{}lLl@{}}
+\thead{Symptom} & \thead{Trolig orsak} & \thead{Kontrollera} \\ \midrule
+Inget alls, inga klockpulser & Pinnmuxen inte satt & Steg 1 \\
+Porten gör ingenting & \code{VDDIO2} inte matad & MVIO-statusen \\
+Alla läsningar ger \code{0x00000000} & \code{MISO} inte kopplad, eller fel pinne & Byt
+  \code{MOSI}/\code{MISO} och se om det ändras \\
+Alla läsningar ger \code{0xFFFFFFFF} & \code{MISO} flytande & Kopplingen \\
+Läsningarna ligger en byte fel & Dataregistret läses inte i \code{transfer()} & \kapref{ch:avr} \\
+Rätt för små tal, fel för stora & Teckenutvidgning i \code{readReg()} & \kapref{ch:byte} \\
+Andra transaktionen ignoreras & Två transaktioner under en låg \code{SS} & \kapref{ch:spi} \\
+Framen kommer fram bakvänd & \code{TX_DATA_LO}/\code{HI} förväxlade & \kapref{ch:driver} \\
+Samma frame om och om igen & \code{RX_ACK} skrivs inte & \kapref{ch:driver} \\
+\code{hasError()} alltid \code{true} & \code{clearError()} skriver \code{0x1} & \kapref{ch:driver} \\
+Bussen konstant dominant & En nods \code{bus_en} ignorerad & Kopplingstabellen \\
+Fungerar på kort kabel, inte lång & Terminering & 120~\textohm{} i vardera änden \\
+\end{booktable}
+
+\subsection{Arbetsgången}
+
+\begin{enumerate}
+  \item Vilket steg var det sista som gav rätt kvitto?
+  \item Vad är den \textbf{enda} saken som tillkommit sedan dess?
+  \item Formulera en hypotes om vad som är fel.
+  \item Bestäm vilken mätning som skulle avgöra saken.
+  \item Gör mätningen.
+\end{enumerate}
+
+\begin{aside}
+\note Att byta sladdar tills det fungerar är inte felsökning, och det tar längre tid. Skillnaden
+mellan de två arbetssätten är ungefär en eftermiddag per fel, och den är den mest överförbara
+färdigheten i hela kursen.
+\end{aside}
+
+\subsection{Att felsöka någon annans halva}
+
+En bugg under bring-upen kan ligga i din kod, i den andra gruppens VHDL, eller i en kopplingstråd.
+Tre regler gör det hanterbart:
+
+\begin{itemize}
+  \item \textbf{Misstänk din egen halva först.} Inte av ödmjukhet, utan för att du kan ändra den
+    och mäta på den.
+  \item \textbf{Bevisa innan du rapporterar.} "Det fungerar inte" är inte en felrapport.
+    "Steg 2 ger \code{0x000007FF} för \code{TX_ID} men \code{0x00000000} för \code{TX_DLC}" är det.
+  \item \textbf{Ändra en sak i taget, och skriv ned vad.} Två personer som felsöker samma
+    koppling samtidigt gör varandras mätningar meningslösa.
+\end{itemize}

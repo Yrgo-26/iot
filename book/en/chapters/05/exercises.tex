@@ -1,0 +1,59 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Predict}{Reasoning}
+\label{ex:5:1}
+Answer before you compile, then check.
+\begin{enumerate}[a)]
+  \item What is \code{sizeof(driver::can::Frame)} on your machine? Why is it not 11?
+  \item Does \code{driver::can::Frame f{0x123U, 2U, {0xAAU, 0xBBU}}} compile? What does
+    \code{f.data[7]} become?
+  \item What happens if you add a constructor of your own and then try to compile the line in b)?
+\end{enumerate}
+
+\exercise{constexpr}{Code}
+\label{ex:5:2}
+Add the following to a test file:
+\begin{cppcode}
+static_assert(driver::can::isValid(driver::can::Frame{0x7FFU, 8U, {}}));
+static_assert(!driver::can::isValid(driver::can::Frame{0x800U, 0U, {}}));
+\end{cppcode}
+\begin{enumerate}[a)]
+  \item What does it prove that the lines compile?
+  \item What do they cost at run time?
+\end{enumerate}
+
+\exercise{Read the suite}{Reasoning}
+\label{ex:5:3}
+Open the supplied \code{test_frame.cpp} and answer without running it.
+\begin{enumerate}[a)]
+  \item Which boundary values are tested for \code{id} and for \code{dlc}? Why those in
+    particular?
+  \item Which test case would fail if \code{isValid()} wrote \code{<} instead of \code{<=}? Which
+    would still be green?
+  \item Is there any requirement in this chapter that the suite does \emph{not} check?
+\end{enumerate}
+
+\exercise{Break the code}{Code}
+\label{ex:5:4}
+Change \code{isValid()} so that the \code{id} bound becomes \code{<} instead of \code{<=}, and run
+the suite.
+\begin{enumerate}[a)]
+  \item Which test case fails, and what does the output say?
+  \item Follow the procedure in \secref{sec:pyramid}. How long did it take to find the error?
+  \item Restore the code.
+\end{enumerate}
+
+\exercise{Where the validation sits}{Reasoning}
+\label{ex:5:5}
+A group member proposes that \code{EchoNode} should check \code{dlc} as well before it calls
+\code{send()}, "just to be safe".
+\begin{enumerate}[a)]
+  \item What is the argument for?
+  \item What is the argument against?
+  \item What happens the day \code{MaxDataLen} changes?
+\end{enumerate}

@@ -1,0 +1,50 @@
+\section*{Chapter 7 --- Component testing through the stub}
+\addcontentsline{toc}{section}{Chapter 7 --- Component testing through the stub}
+
+\solution{ex:7:1}{Write the bug, watch the test catch it}
+The exercise asks for a code change; the questions are answered here.
+\ans{a} The cases checking the echoed frame's content and the counter fail --- the frame that is
+echoed has the wrong \code{dlc}, and the case calling \code{run()} twice on one injected frame
+reveals that the state has been consumed. The case without an injected frame is still green, since
+\code{receive()} returns \code{false} already the first time.
+\ans{b} No, neither of them. \code{Stub} and \code{Frame} do exactly what they promise; neither of
+them is broken.
+\ans{c} A unit test cannot see a bug that lives \emph{between} the units. It takes a test running
+several parts together to discover that one of them uses the other incorrectly.
+
+\solution{ex:7:2}{The layer boundary}
+\ans{a} No. \code{EchoNode} has to know the interface --- it is its only dependency.
+\ans{b} No. The test holds the concrete type; that is where \code{inject()} lives.
+\ans{c} Yes. The implementation file is also above the interface, and must not know which driver
+it is running against.
+\ans{d} No, it does not break the boundary --- \code{hasError()} and \code{clearError()} belong to
+the interface. But it is questionable anyway: \code{EchoNode} cannot do anything meaningful about
+an error it cannot interpret, and the error flag is one bit for four causes. Error handling
+belongs with whoever owns the driver and knows the system's requirements, that is, in the factory
+or in the layer above.
+\ans{e} Yes, grossly. The cast names a concrete driver \emph{and} reaches a private method in it.
+It would also crash as soon as a \code{Stub} was injected.
+
+\solution{ex:7:3}{Ownership}
+\ans{a} It does not compile. \code{Interface} is abstract and cannot be instantiated as a value;
+the compiler says that the type is abstract. Were it not, the member would \emph{slice} the object
+--- copy the base class part and throw the rest away --- which is worse than a compile error.
+\ans{b} It compiles. The reference then points at a destroyed object, and \code{run()} is
+undefined behaviour. The compiler cannot see it; that is the one cost of the component not owning
+its driver.
+\ans{c} Because \code{EchoNode} does not own it. The driver's lifetime is longer than the
+component's, it can be shared with other components, and the ownership sits with the factory. A
+\code{unique_ptr} would have claimed the opposite, and a \code{shared_ptr} would have added
+counting that nobody needs.
+
+\solution{ex:7:4}{Read the suite}
+\ans{a} The case checking only the echoed frame's \emph{content} --- the right \code{id},
+\code{dlc} and data --- would be green, since the echo still happens. That is why the suite also
+checks the counter.
+\ans{b} Traffic is fed in with \code{stub.inject()} and read back with \code{stub.receive()}.
+Neither of them is in \code{Interface}: \code{inject()} \code{Spi} cannot implement, and
+\code{receive()} is used here in a different role from the interface's --- the test inspects what
+the component \emph{sent}, which the stub happens to store in the same field.
+\ans{c} That \code{run()} consumes the frame: after the first call there is nothing left to echo,
+so the counter is to stand at 1 and not 2. That is the requirement catching the double call in
+exercise~\ref{ex:7:1}.

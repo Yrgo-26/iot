@@ -1,0 +1,18 @@
+\section*{Sammanfattning}
+\addcontentsline{toc}{section}{Sammanfattning}
+
+\begin{itemize}
+  \item En delad buss är broadcast. Alla noder hör allt, och \textbf{routingen ligger i noden},
+    inte i bussen --- ledningen kan inte läsa adresser.
+  \item \code{DST} säger vem framen är till, \code{SRC} vem den kom från så att svar är möjliga,
+    och \code{SEQ} parar ihop svar med fråga.
+  \item En felmodell ska vara \textbf{deterministisk}. Ett fel som inträffar på samma byte varje
+    körning går att testa; ett slumpmässigt gör det inte.
+  \item Checksumman ger \textbf{integritet}, inte \textbf{leveransgaranti}.
+  \item Kedjan: checksumma upptäcker fel $\rightarrow$ ACK bekräftar leverans $\rightarrow$
+    timeout upptäcker utebliven ACK $\rightarrow$ omsändning åtgärdar $\rightarrow$
+    dubblettdetektering städar upp efter omsändningen.
+  \item En omsändning har \textbf{samma} \code{SEQ}. Ett nytt vore ett nytt meddelande.
+  \item En upptäckt dubblett ska \textbf{inte} köra applikationslogiken igen, men \textbf{ska}
+    kvitteras igen. Tystnad ger bara ännu en omsändning.
+\end{itemize}

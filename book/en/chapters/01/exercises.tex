@@ -1,0 +1,48 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Build a frame}{Calculation}
+\label{ex:1:1}
+A node with address \code{0x17} sends a \code{StatusRequest} to a temperature sensor with address
+\code{0x25}. The sequence number is \code{0x7F05}.
+\begin{enumerate}[a)]
+  \item Write out the whole frame byte by byte, in hexadecimal.
+  \item The sensor answers with a \code{StatusResponse} containing the temperature \code{0x16}
+    (one byte). Write out that frame as well.
+  \item How many bytes is the shortest possible frame in this protocol?
+\end{enumerate}
+
+\exercise{The fields and their purpose}{Reasoning}
+\label{ex:1:2}
+For each of the fields SOF, LEN, TYPE, DST, SRC, SEQ and CHK: describe in one sentence what
+breaks if the field is removed.
+
+Two of them can be removed without the protocol ceasing to work in a system with exactly two
+nodes. Which, and why?
+
+\exercise{Endianness}{Reasoning}
+\label{ex:1:3}
+A group serialises the sequence number by copying memory directly:
+
+\begin{cppcode}
+std::memcpy(&buf[Offset::Seq], &frame.seqNr, sizeof(frame.seqNr));
+\end{cppcode}
+
+\begin{enumerate}[a)]
+  \item What ends up in the buffer on an x86 machine if \code{seqNr} is \code{0x7F05}?
+  \item The code nevertheless works flawlessly in their own tests. Why?
+  \item When does it break?
+\end{enumerate}
+
+\exercise{The limits of the checksum}{Reasoning}
+\label{ex:1:4}
+The course's checksum is a sum of bytes.
+\begin{enumerate}[a)]
+  \item A disturbance swaps two data bytes. Is it detected?
+  \item A disturbance increases one byte by 1 and decreases another by 1. Is it detected?
+  \item Give an example of a change to the frame above that the checksum does \emph{not} detect.
+\end{enumerate}

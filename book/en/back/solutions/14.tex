@@ -1,0 +1,52 @@
+\section*{Chapter 14 --- Bus analysis}
+\addcontentsline{toc}{section}{Chapter 14 --- Bus analysis}
+
+\solution{ex:14:1}{Read your own traffic}
+The exercise asks for measurements; the questions are answered here.
+\ans{a} They should match exactly what you wrote to \code{TX_ID}, \code{TX_DLC} and the data
+registers. If they do not, the fault is in the packing, not in the transfer --- the analyser
+decodes what is actually on the wires.
+\ans{b} The order is what the analyser adds. A swap of \code{TX_DATA_LO} and \code{TX_DATA_HI}
+gives a frame with the right identifier and the right length but the wrong byte order, and this is
+where it first becomes visible: every test on the laptop may have been green if the test made the
+same mistake as the code.
+\ans{c} Among others SOF, RTR, IDE, r0, the CRC field, the ACK slot and EOF. The register map
+exposes only the identifier, the DLC and the data --- the controller handles the rest, and the
+analyser is the only place where you see them.
+
+\solution{ex:14:2}{The other way round}
+The exercise asks for measurements; the questions are answered here.
+\ans{a} Yes, if RX valid was set and you read the registers. If it does not: check that the
+identifier is one your node receives, and that the bit rate is the same in the analyser.
+\ans{b} Bit 1 should go high when the frame is received and low only when you write \code{0x1} to
+\code{RX_ACK}. If it stays set, the acknowledgement has not gone through --- check that bit 0
+really is set in the written word.
+\ans{c} The second frame overwrites the first if you have not had time to acknowledge it. The
+controller holds exactly one received frame, and the newest wins; that is documented and
+deliberate. With a \code{receive()} taking around 270~µs and frames taking 130~µs, you do not have
+time.
+
+\solution{ex:14:3}{The acknowledgement}
+\ans{a} Yes. The analyser is a real CAN controller and pulls the ACK slot low on every frame it
+receives with a correct CRC. In the trace it shows as the frame being registered without an
+acknowledgement error.
+\ans{b} The error flag remains \emph{untouched}. This design never reads the ACK slot back, so it
+cannot detect that nobody acknowledged --- the transmission completes exactly as if everything had
+gone well.
+\ans{c} A complete CAN controller would have detected the acknowledgement error, incremented its
+transmit error counter and \textbf{retransmitted the frame}, over and over until somebody answered
+or the counter reached bus off. A lone node on a real CAN bus therefore transmits the same frame
+for ever. This controller does not, because it has neither ACK read-back nor automatic
+retransmission --- two of the documented simplifications.
+
+\solution{ex:14:4}{The bottleneck}
+\ans{a} It depends on how often your application calls \code{send()}. With one frame per iteration
+in a tight loop the load is low by CAN standards --- a few per cent --- since the SPI link slows
+you down long before the bus fills up.
+\ans{b} A \code{send()} is six SPI transactions of around 45~µs each, that is, about
+\textbf{270~µs}. A maximal CAN frame is around 130 bits, that is, about \textbf{130~µs} at
+1~Mbit/s.
+\ans{c} \textbf{The SPI link.} It takes roughly twice as long as the frame it sends, so the CAN
+bus stands waiting for you. That matches the calculation in \secref{sec:timing} --- and this is
+where you can see with your own eyes that it did, which is why the chapter asks you to measure
+instead of trusting the table.

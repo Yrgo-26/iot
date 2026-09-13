@@ -1,0 +1,57 @@
+\section{Vad hårdvaran tar över}
+\label{sec:handover}
+
+CAN löser samma problem som \kapref{ch:frames}--\kapref{ch:bussar}, i kisel:
+
+\begin{booktable}{@{}lL@{}}
+\thead{Mekanism} & \thead{Vem gör den i CAN} \\ \midrule
+Ramsynkronisering & Kontrollern: SOF-biten, och sju recessiva bitar som slutmärke. \\
+Längdfält & Kontrollern: DLC, fyra bitar, 0--8 databytes. \\
+Checksumma & Kontrollern: CRC-15, beräknad och kontrollerad av samma motor. \\
+Kollisionshantering & Bussen själv, genom arbitrering --- utan bussmästare och utan förlorad tid. \\
+Kvittens & Kontrollern: en enda bit inuti framen, som varje mottagare drar ned. \\
+Adressering & \textbf{Finns inte.} Identifieraren beskriver innehållet, och varje nod filtrerar
+  själv. \\
+Sekvensnummer & \textbf{Finns inte.} Behövs det får applikationen lägga det i nyttolasten. \\
+Timeout och omsändning & En fullständig kontroller gör det i hårdvara. \emph{Den här gör det
+  inte} --- se \secref{sec:limits}. \\
+\end{booktable}
+
+Det som återstår för mjukvaran är alltså att lämna över en identifierare, en längd och några
+databytes --- och att läsa av hur det gick.
+
+\begin{aside}
+\note CAN som protokoll --- bussen, framen, bitstoppningen, CRC-15, arbitreringen, bittajmingen
+och felhanteringen --- står i sin helhet i kursens CAN-bok. Det här kapitlet förutsätter dess
+kapitel 1, 2 och 7. Läs dem först; resten av boken är fördjupning du kan ta när den behövs.
+\end{aside}
+
+\section{Kontrollern, och varför ett lager ligger emellan}
+\label{sec:layer}
+
+Kontrollern är konstruerad i VHDL av en parallellklass. Den är byggd för en anropare i samma
+klockdomän, och signalerar därför med pulser som är \textbf{en klockcykel} långa --- 20~ns vid
+50~MHz.
+
+En processor som pollar över en seriebuss ser systemet några tiotals mikrosekunder i taget i bästa
+fall. En puls på 20~ns är alltså borta tusentals cykler innan nästa pollning kommer.
+
+Därför ligger det två lager mellan kontrollern och din kod:
+
+\begin{console}
+                 din C++-kod
+                      |
+                     SPI                  5-bytetransaktioner, <= 1 MHz
+                      |
+   spi_slave  ->  spi_reg_bridge          bytes blir transaktioner
+                      |
+              register_bank               pulser blir klibbiga, pollbara bitar
+                      |
+              can_controller              CAN i VHDL
+                      |
+                  CAN-bussen
+\end{console}
+
+\textbf{Registerbanken är lagret som gör konstruktionen användbar från mjukvara.} Den fångar
+pulserna och håller kvar dem som nivåer du själv måste nollställa. Varje "skriv \code{0x1} här för
+att kvittera" i registerkartan är den mekanismen.

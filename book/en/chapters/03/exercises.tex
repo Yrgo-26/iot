@@ -1,0 +1,52 @@
+\section*{Exercises}
+\addcontentsline{toc}{section}{Exercises}
+
+The solutions to the exercises that do not ask for code are in
+\hyperref[ch:losningar]{appendix~A}. The code is published in the course repository after the
+lecture.
+
+\exercise{Routing}{Reasoning}
+\label{ex:3:1}
+\begin{enumerate}[a)]
+  \item Does the routing happen in the bus or in the node? Justify your answer with what a
+    physical wire can and cannot do.
+  \item A node receives a frame with a correct checksum, but \code{DST} is not its address. What
+    should it do?
+  \item Why should it \emph{not} send a \code{Nack} in that situation?
+\end{enumerate}
+
+\exercise{The error model}{Reasoning}
+\label{ex:3:2}
+For each of the errors --- dropped byte, flipped bit, delay --- answer:
+\begin{enumerate}[a)]
+  \item Does the frame end up structurally correct?
+  \item Which mechanism detects the error?
+  \item Which state is the parser in afterwards?
+\end{enumerate}
+One of the three errors should cause no problem at all. Which one, and what does it mean if it
+does anyway?
+
+\exercise{A lost acknowledgement}{Decoding}
+\label{ex:3:3}
+Node A sends a \code{StatusRequest} with \code{SEQ 0x0007} to node B. B receives it, processes it,
+and sends an \code{Ack}. The acknowledgement is lost.
+\begin{enumerate}[a)]
+  \item What does A do next, and after what?
+  \item What does B see then?
+  \item What should B do, and what should B not do?
+  \item What would have happened if B had stayed silent instead?
+\end{enumerate}
+
+\exercise{The timeout value}{Reasoning}
+\label{ex:3:4}
+\begin{enumerate}[a)]
+  \item What happens if the timeout is too short? Give two consequences.
+  \item What happens if it is too long?
+  \item What information would be needed to choose the value correctly, and why does a node
+    rarely have it?
+\end{enumerate}
+
+\exercise{The chain}{Reasoning}
+\label{ex:3:5}
+List the five mechanisms in the reliability chain, in order. For each one: which problem does it
+solve, and which new problem does it create?
