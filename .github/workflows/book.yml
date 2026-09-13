@@ -1,0 +1,44 @@
+# Set pipeline name.
+name: Book
+
+# Build and publish both language editions of the book whenever a version tag is pushed,
+# e.g. v1.0.0.
+on:
+  push:
+    tags: ["v*"]
+
+# Creating a release needs write access to the repository's contents.
+permissions:
+  contents: write
+
+# Define pipeline jobs.
+jobs:
+  # Build both PDFs with the tag on their title pages, and attach them to a release named after
+  # the tag.
+  release:
+    name: Build and release the book
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      # TeX Live is not on the runner image, so the package lists have to be current. A failing
+      # third-party repository (see ci.yml) must not stop the Ubuntu lists from being used.
+      # texlive-lang-european carries the Swedish hyphenation patterns babel asks for; the
+      # English ones are in the base install.
+      - name: Install LuaLaTeX and fonts
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y make texlive-luatex texlive-latex-extra \
+                                  texlive-lang-european fonts-texgyre fonts-texgyre-math \
+                                  fonts-dejavu-core
+      - name: Build
+        run: make -C book VERSION="${{ github.ref_name }}"
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            book/sv/kommunikationsprotokoll-och-drivrutiner.pdf \
+            book/en/communication-protocols-and-drivers.pdf \
+            --title "Kommunikationsprotokoll och drivrutiner, ${{ github.ref_name }}" \
+            --notes "Kursboken byggd från ${{ github.sha }}, på svenska och engelska."

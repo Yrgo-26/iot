@@ -1,0 +1,60 @@
+# Set pipeline name.
+name: CI
+
+# Set pipeline triggers.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Read-only token: no job writes anything back to the repository.
+permissions:
+  contents: read
+
+# Supersede an in-flight run when a newer commit lands on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Define pipeline jobs.
+jobs:
+  # Build the code examples, run on latest Ubuntu runner.
+  build:
+    name: Build code examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build
+        run: make build
+
+  # Check code formatting, run on latest Ubuntu runner.
+  format-check:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      # ubuntu-latest ships clang-format preinstalled, so apt is only a fallback.
+      - name: Provide clang-format
+        run: command -v clang-format || sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: |
+          clang-format --version
+          make format-check
+
+  # Check the course material itself, run on latest Ubuntu runner.
+  docs-check:
+    name: Check course material
+    runs-on: ubuntu-latest
+    steps:
+      # The notes link into the test framework's README, so the submodule is checked out too.
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Check links
+        run: make docs-check
