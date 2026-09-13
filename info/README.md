@@ -13,11 +13,38 @@ Deltagarna förutsätts komma med följande på plats från *Programmeringsmetod
 * Arv, virtuella funktioner, abstrakta basklasser och polymorfism.
 * Interface-baserad drivrutinsdesign och factory-mönstret.
 * `constexpr`, `noexcept`, `[[nodiscard]]`, namespaces och `std::uint8_t`-familjen.
-* Git och GitHub på grundnivå: klona, branch, commit, push och Pull Request.
+* Git och GitHub: klona, branch, commit, push, Pull Request och kodgranskning.
+* Repoorganisation: en förutsägbar katalogstruktur, byggingångar och dokumentation.
+* Kodformattering med `clang-format`: en gemensam stil som kontrolleras automatiskt.
 * Grundläggande vana vid AVR32DB28-kortet och en terminalmiljö (WSL/Linux, `make`).
 
 Inget av det lärs ut från grunden. Det repeteras kort där det behövs, i appendixen snarare än
 i föreläsningarna.
+
+C++-delen finns samlad i
+[Modern Embedded C++](https://github.com/qrtech-academy/modern-embedded-cpp/blob/main/book/modern-embedded-cpp.pdf)
+(på engelska), som är referensen att slå upp i om något sitter löst:
+
+| Förkunskap | Kapitel |
+|---|---|
+| `constexpr`, `noexcept`, `[[nodiscard]]`, namespaces och `std::uint8_t`-familjen | 1 (avsnitt 1.2) |
+| Klasser, konstruktorer och destruktorer, `explicit`, `final`, `= default`, `= delete` | 2 |
+| Arv, virtuella funktioner, abstrakta basklasser och polymorfism | 3 |
+| Interface-baserad drivrutinsdesign och factory-mönstret | 3 och 4 |
+
+Kapitel 5 (templates) och 6 (trådar och synkronisering) förutsätts inte.
+
+Git, repoorganisation och kodformattering finns i
+[DevOps for Embedded Engineers](https://github.com/qrtech-academy/devops/blob/main/book/devops.pdf)
+(på engelska):
+
+| Förkunskap | Kapitel |
+|---|---|
+| Git och GitHub: branchar, Pull Requests och kodgranskning | 1 |
+| Repoorganisation: katalogstruktur, byggingångar och dokumentation | 2 |
+| Kodformattering med `clang-format` | 3 |
+
+Kapitel 4-6 (CI med GitHub Actions och testautomatisering i Python) förutsätts inte.
 
 Det kursen lär ut från noll är protokollkonstruktion, hårdvarukontrakt och testning av
 drivrutiner utan hårdvara.
@@ -103,10 +130,11 @@ Kursmaterialet består av:
   per föreläsning, med sammanfattningar, övningar och övningsduggan med fullständiga svar. Den
   finns [på svenska](../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf) och [på
   engelska](../book/en/communication-protocols-and-drivers.pdf); upplagorna har samma innehåll.
-* Boken [CAN - bussen, framen och kontrollern](https://github.com/Yrgo-26/can-book), som samlar CAN som protokoll
-  med övningar och svar. Den täcker [L04](../lectures/L04/README.md) och
-  [L08](../lectures/L08/README.md) på djupet, och är den enda delen av materialet som är värd att
-  läsa i sin helhet i ett svep.
+* Boken *CAN - bussen, framen och kontrollern*, som samlar CAN som protokoll med övningar och svar.
+  Den finns [på svenska](https://github.com/Yrgo-26/can-book/blob/main/sv/can-sv.pdf) och
+  [på engelska](https://github.com/Yrgo-26/can-book/blob/main/en/can-en.pdf); upplagorna har samma
+  innehåll. Den täcker [L04](../lectures/L04/README.md) och [L08](../lectures/L08/README.md) på
+  djupet, och är den enda delen av materialet som är värd att läsa i sin helhet i ett svep.
 * Kontraktet mot hårdvaruklassen, i sin helhet i
   [`projects/P03/contract/`](../projects/P03/contract/) och sammanfattat i
   [L04 bilaga B](../lectures/L04/appendix/b_register_map_and_architecture.md) och

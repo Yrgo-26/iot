@@ -48,17 +48,33 @@ obligatorisk, och simulering räcker inte - länken ska fungera.
 Ett projekt (**P03**, 4p), en skriftlig dugga (**D01**, 4p), och en obligatorisk labb som ger
 noll poäng men är ett krav för godkänt. Se [info/README.md](./info/README.md#examination-och-betygsnivåer).
 
-### Böckerna
+---
+
+## Kurslitteratur
+
+### Kursboken
 Hela kursen finns också som en bok, i två språkupplagor:
 * Svenska: [Kommunikationsprotokoll och drivrutiner](./book/sv/kommunikationsprotokoll-och-drivrutiner.pdf).
-* Engelska: [Communication Protocols and Drivers](./book/en/communication-protocols-and-drivers.pdf). 
+* Engelska: [Communication Protocols and Drivers](./book/en/communication-protocols-and-drivers.pdf).
 
-Boken innehåller ett kapitel per föreläsning, där varje kapitel innefattar sammanfattningar, övningar och övningsduggan med fullständiga svar. Den byggs från källorna i [`book/`](./book/README.md), där det också står hur du bygger den själv
-(`make -C book`) och hur en ny upplaga ges ut.
+Boken innehåller ett kapitel per föreläsning, där varje kapitel innefattar sammanfattningar,
+övningar och övningsduggan med fullständiga svar. Den byggs från källorna i
+[`book/`](./book/README.md), där det också står hur du bygger den själv (`make -C book`) och hur en
+ny upplaga ges ut.
 
-CAN som protokoll ligger i en egen bok, [CAN - bussen, framen och
-kontrollern](https://github.com/Yrgo-26/can-book), eftersom den delas med hårdvarukursen och
-därför inte nämner någon kurs.
+### Referenslitteratur
+CAN som protokoll ligger i en egen bok, också den i två språkupplagor:
+* Svenska: [CAN - bussen, framen och
+  kontrollern](https://github.com/Yrgo-26/can-book/blob/main/sv/can-sv.pdf).
+* Engelska: [CAN - the bus, the frame and the
+  controller](https://github.com/Yrgo-26/can-book/blob/main/en/can-en.pdf).
+
+C++-grunderna, som kursen förutsätter, finns i
+[Modern Embedded C++](https://github.com/qrtech-academy/modern-embedded-cpp/blob/main/book/modern-embedded-cpp.pdf)
+(på engelska). Git, repoorganisation och kodformattering, som kursen också förutsätter, finns i
+kapitel 1-3 av
+[DevOps for Embedded Engineers](https://github.com/qrtech-academy/devops/blob/main/book/devops.pdf)
+(på engelska). Se [förkunskaper](./info/README.md#förkunskaper) för vilka kapitel som täcker vad.
 
 ---
 

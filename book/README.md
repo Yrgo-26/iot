@@ -103,9 +103,12 @@ Etiketterna är desamma i båda upplagorna och översätts inte.
 
 ## Relaterade böcker
 
-* [CAN - bussen, framen och kontrollern](https://github.com/Yrgo-26/can-book) - CAN-boken, som kapitel 4 är den korta versionen
-  av. Den ligger i ett eget repo eftersom den delas med hårdvarukursen, och nämner därför ingen
-  kurs.
+* CAN-boken, som kapitel 4 är den korta versionen av, i två språkupplagor precis som den här:
+  [CAN - bussen, framen och kontrollern](https://github.com/Yrgo-26/can-book/blob/main/sv/can-sv.pdf) och
+  [CAN - the bus, the frame and the controller](https://github.com/Yrgo-26/can-book/blob/main/en/can-en.pdf).
+  Den ligger i ett eget repo, [Yrgo-26/can-book](https://github.com/Yrgo-26/can-book), eftersom den
+  delas med hårdvarukursen, och nämner därför ingen kurs. Den svenska upplagan hänvisar till den
+  svenska CAN-boken och den engelska till den engelska; kapitelnumren är desamma i båda.
 
 ---
 
