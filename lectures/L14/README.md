@@ -37,6 +37,9 @@
 ### Förberedelse
 * Läs [labb-PM:et](../../lab/README.md), särskilt avsnittet om CANalyzer och
   redovisningskraven.
+* Läs kapitel 14 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)): att läsa en trace, och att
+  leta efter konstruktionens förenklingar.
 * Ta med en fungerande nod och den bring-up-logg ni fyllde i under [L13](../L13/README.md).
 
 ### Under passet

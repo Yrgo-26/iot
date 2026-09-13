@@ -40,6 +40,9 @@
 ### Förberedelse
 * Läs [labb-PM:et](../../lab/README.md) i sin helhet, särskilt kopplingsschemat och
   bring-up-stegen.
+* Läs kapitel 13 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)): kopplingen, bring-up-stegen
+  och felsökningen.
 * Ta med: AVR32DB28-kort, USB-kabel, CAN-transceiver, två 120 Ω motstånd, tvinnad kabel,
   kopplingsdäck och kopplingstråd. Logikanalysator om ni har tillgång till en.
 

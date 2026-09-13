@@ -31,9 +31,11 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_interface_and_stub.md), som går igenom `Interface` och `Stub`: vad
-  en söm är och varför kursen har två, vad som inte hör hemma i interfacet, och vad stubben inte
-  simulerar.
+* Läs **antingen** [bilaga A](./appendix/a_interface_and_stub.md), som går igenom `Interface` och
+  `Stub`: vad en söm är och varför kursen har två, vad som inte hör hemma i interfacet, och vad
+  stubben inte simulerar, **eller** kapitel 6 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Läs [**P03** avsnitt 6](../../projects/P03/README.md#6-milstolpe-2---interface-och-stub).
 
 ### Under lektionen

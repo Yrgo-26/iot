@@ -27,7 +27,9 @@
 
 ### Förberedelse
 * Läs igenom kursinformationen [här](../../info/README.md).
-* Läs igenom [bilaga A](./appendix/a_frames.md) för information om frames.
+* Läs **antingen** [bilaga A](./appendix/a_frames.md) för information om frames, **eller** kapitel 1
+  i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)). De täcker samma stoff.
 
 ### Under lektionen
 * Genomför övningsuppgifter i [bilaga B](./appendix/b_exercises.md).

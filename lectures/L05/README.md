@@ -35,9 +35,11 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_frame.md) om `Frame` och var validering hör hemma.
-* Läs [bilaga B](./appendix/b_unit_testing.md): testpyramiden, testramverkets API,
-  Arrange-Act-Assert och hur en fallerande svit läses.
+* Läs **antingen** [bilaga A](./appendix/a_frame.md) om `Frame` och var validering hör hemma och
+  [bilaga B](./appendix/b_unit_testing.md) om testpyramiden, testramverkets API, Arrange-Act-Assert
+  och hur en fallerande svit läses, **eller** kapitel 5 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
   **Ni skriver inga tester i den här kursen** - det gör ni i *Mjuk- och hårdvarutestning*
   längre fram. Här ska ni kunna läsa dem och få dem att passera.
 

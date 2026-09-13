@@ -43,7 +43,9 @@ har en helt annan bild av vad ett bra test är än den som ombeds skriva ett fö
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_testing_the_driver.md).
+* Läs **antingen** [bilaga A](./appendix/a_testing_the_driver.md) **eller** kapitel 11 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 
 ### Under lektionen
 * Delta i genomgången av testdubblarna och sviten.

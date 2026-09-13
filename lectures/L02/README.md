@@ -30,7 +30,9 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs igenom [bilaga A](./appendix/a_frame_parsing.md) gällande frame-parsning.
+* Läs **antingen** [bilaga A](./appendix/a_frame_parsing.md) gällande frame-parsning, **eller**
+  kapitel 2 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 
 ### Under lektionen
 * Genomför övningsuppgifter i [bilaga B](./appendix/b_exercises.md).

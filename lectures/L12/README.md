@@ -35,8 +35,10 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_avr32db28_spi.md) om `volatile` och AVR32DB28:s SPI.
-* Läs [bilaga B](./appendix/b_factory_and_app.md) om factoryn och exempelapplikationen.
+* Läs **antingen** [bilaga A](./appendix/a_avr32db28_spi.md) om `volatile` och AVR32DB28:s SPI och
+  [bilaga B](./appendix/b_factory_and_app.md) om factoryn och exempelapplikationen, **eller**
+  kapitel 12 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Kontrollera att verktygskedjan fungerar: `avr-gcc`, `avr-libc`, `avrdude` och AVR-Dx-paketet.
 
 ### Under lektionen

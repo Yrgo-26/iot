@@ -36,9 +36,13 @@ Visa förståelse för kursens båda halvor:
 ## Instruktioner
 
 ### Förberedelse
-* Gå igenom [övningsduggan](../../exam/practice_exam.md) och era svar.
-* Repetera [L03](../L03/README.md)s fyra appendix - det är den delen av kursen som ligger längst
-  bort i tiden och som väger tyngst i duggans första hälft.
+* Gå igenom [övningsduggan](../../exam/practice_exam.md) och era svar. Den finns också i appendix
+  C i kursboken, med fullständiga svar i appendix D.
+* Läs kapitel 15 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)): vad duggan täcker, och de
+  dyraste misstagen.
+* Repetera [L03](../L03/README.md)s fyra appendix, eller kapitel 3 i kursboken - det är den delen
+  av kursen som ligger längst bort i tiden och som väger tyngst i duggans första hälft.
 * Förbered er fusklapp: ett A4-blad, båda sidor. Se [duggainformationen](../../exam/README.md).
 
 ### Under passet

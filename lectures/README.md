@@ -1,5 +1,12 @@
 # Föreläsningar
 
+Varje föreläsning motsvarar ett kapitel i kursboken, med samma nummer: L05 är kapitel 5. Boken
+finns [på svenska](../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf) och
+[på engelska](../book/en/communication-protocols-and-drivers.pdf), med samma innehåll och samma
+kapitel- och avsnittsnummer. Inför varje föreläsning läser ni **antingen** dess appendix **eller**
+motsvarande kapitel - de täcker samma stoff. Boken har dessutom lösningar till sina övningar, i
+appendix A.
+
 ## Del 1 - Ett eget protokoll
 * [L01](./L01/README.md): Frames: struktur, fält och serialisering.
 * [L02](./L02/README.md): Byte-parsing och tillståndsmaskiner.

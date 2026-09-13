@@ -33,11 +33,16 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs **kapitel 1, 2 och 7** i kursens bok, [CAN — bussen, framen och
-  kontrollern](https://github.com/Yrgo-26/can-book). [Bilaga A](./appendix/a_can.md) är läsanvisningen:
-  vad ni ska läsa och vad ni ska ha med er därifrån.
-* Läs [bilaga B](./appendix/b_register_map_and_architecture.md): registerkartan och
-  arkitekturen. Det är kursens viktigaste appendix - hela **P03** skrivs mot den.
+* Läs **kapitel 1, 2 och 7** i CAN-boken
+  ([svenska](https://github.com/Yrgo-26/can-book/blob/main/sv/can-sv.pdf),
+  [engelska](https://github.com/Yrgo-26/can-book/blob/main/en/can-en.pdf)).
+  [Bilaga A](./appendix/a_can.md) är läsanvisningen: vad ni ska läsa och vad ni ska ha med er
+  därifrån.
+* Läs **antingen** [bilaga B](./appendix/b_register_map_and_architecture.md): registerkartan och
+  arkitekturen, **eller** kapitel 4 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)). Det är kursens viktigaste
+  stoff - hela **P03** skrivs mot det.
 * Läs projektbeskrivningen för [**P03**](../../projects/P03/README.md) i sin helhet.
 
 ### Under lektionen

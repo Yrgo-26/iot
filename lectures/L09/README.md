@@ -36,7 +36,9 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_byte_transport.md).
+* Läs **antingen** [bilaga A](./appendix/a_byte_transport.md) **eller** kapitel 9 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Läs [**P03** avsnitt 8](../../projects/P03/README.md#8-milstolpe-4---bytetransport-och-transaktionslagret).
 
 ### Under lektionen

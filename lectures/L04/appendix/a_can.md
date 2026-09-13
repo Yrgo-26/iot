@@ -2,12 +2,16 @@
 
 ## CAN — läsanvisning
 
-CAN som protokoll står i sin helhet i kursens bok,
-[**CAN - bussen, framen och kontrollern**](https://github.com/Yrgo-26/can-book). Den här bilagan duplicerar
-den inte; den säger vad ni ska läsa, i vilken ordning, och vad ni ska ha med er därifrån.
+CAN som protokoll står i sin helhet i CAN-boken,
+[**CAN - bussen, framen och kontrollern**](https://github.com/Yrgo-26/can-book/blob/main/sv/can-sv.pdf),
+som också finns på engelska:
+[**CAN - the bus, the frame and the controller**](https://github.com/Yrgo-26/can-book/blob/main/en/can-en.pdf).
+Den här bilagan duplicerar den inte; den säger vad ni ska läsa, i vilken ordning, och vad ni ska ha
+med er därifrån.
 
-Boken är på svenska, ungefär 55 sidor, och varje kapitel slutar med fyra övningar som alla
-besvaras i bokens appendix A. Läs den med papper och penna framme.
+Boken är ungefär 55 sidor, och varje kapitel slutar med fyra övningar som alla besvaras i bokens
+appendix A. Upplagorna har samma innehåll och samma kapitelnummer, så läsanvisningen nedan gäller
+båda. Läs den med papper och penna framme.
 
 ---
 

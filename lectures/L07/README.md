@@ -30,8 +30,10 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_component_testing.md) om komponenttestning: vad det är, var
-  lagergränsen går, och vad den utdelade sviten bevisar respektive inte bevisar.
+* Läs **antingen** [bilaga A](./appendix/a_component_testing.md) om komponenttestning: vad det är,
+  var lagergränsen går, och vad den utdelade sviten bevisar respektive inte bevisar, **eller**
+  kapitel 7 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Läs [**P03** avsnitt 7](../../projects/P03/README.md#7-milstolpe-3---appechonode-appecho_nodeh).
 
 ### Under lektionen

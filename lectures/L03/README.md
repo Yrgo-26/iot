@@ -53,7 +53,9 @@ av kursen.
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_bus_and_routing.md) om databussar och routing.
+* Läs **antingen** [bilaga A](./appendix/a_bus_and_routing.md) om databussar och routing, **eller**
+  avsnitt 3.1 i kursboken ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Läs igenom projektbeskrivningen för **P03** [här](../../projects/P03/README.md), åtminstone
   avsnitt 1-3.
 
@@ -63,9 +65,12 @@ av kursen.
 * Bilda projektgrupper om 4-5, och notera vilken hårdvarugrupp ni paras ihop med.
 
 ### Efter lektionen
-* Läs [bilaga B](./appendix/b_error_model.md) om felmodellen, [bilaga C](./appendix/c_ack_nack.md)
-  om ACK/NACK och [bilaga D](./appendix/d_timeout_retry_duplicate.md) om timeout, retry och
-  dubbletter.
+* Läs **antingen** [bilaga B](./appendix/b_error_model.md) om felmodellen,
+  [bilaga C](./appendix/c_ack_nack.md) om ACK/NACK och
+  [bilaga D](./appendix/d_timeout_retry_duplicate.md) om timeout, retry och dubbletter, **eller**
+  avsnitt 3.2-3.3 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Genomför **del 2-4** (uppgift 6-21) i [bilaga E](./appendix/e_exercises.md).
 
 ---

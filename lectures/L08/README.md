@@ -34,8 +34,11 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_spi.md). Den är kontraktets andra halva, och den läses lika noga
-  som [L04 bilaga B](../L04/appendix/b_register_map_and_architecture.md).
+* Läs **antingen** [bilaga A](./appendix/a_spi.md) **eller** kapitel 8 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)). Det är kontraktets andra
+  halva, och det läses lika noga som registerkartan i
+  [L04 bilaga B](../L04/appendix/b_register_map_and_architecture.md).
 
 ### Under lektionen
 * Delta i genomgången.

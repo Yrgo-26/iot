@@ -31,7 +31,9 @@
 ## Instruktioner
 
 ### Förberedelse
-* Läs [bilaga A](./appendix/a_spi_driver.md).
+* Läs **antingen** [bilaga A](./appendix/a_spi_driver.md) **eller** kapitel 10 i kursboken
+  ([svenska](../../book/sv/kommunikationsprotokoll-och-drivrutiner.pdf),
+  [engelska](../../book/en/communication-protocols-and-drivers.pdf)).
 * Läs [**P03** avsnitt 9](../../projects/P03/README.md#9-milstolpe-5---spi-metodkontrakten).
 
 ### Under lektionen
